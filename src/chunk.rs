@@ -38,4 +38,9 @@ impl Chunk {
     pub fn add_constant(&mut self, value: Value) {
         self.constants.push(value)
     }
+    pub fn get_constant_unwrap(&self, const_idx: u8) -> &Value {
+        self.constants
+            .get(const_idx as usize)
+            .unwrap_or_else(|| panic!("Invalid constant index {const_idx}"))
+    }
 }
