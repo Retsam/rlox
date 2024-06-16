@@ -5,6 +5,5 @@ pub mod opcode {
 
 pub enum Op {
     Return,
-    // TODO: probably should be usize?
     Constant(/* the index of the constant */ u8),
 }

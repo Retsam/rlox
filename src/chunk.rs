@@ -9,7 +9,7 @@ pub struct Chunk {
     // Using normal, built-in Vec here instead of building my own array like the book does in C++
     // Did choose to represent it as raw bytes, rather than something like Vec<Op>, that would simplify the
     //   reading and writing, but would be sized to the largest enum variant
-    code: Vec<u8>,
+    pub code: Vec<u8>,
     constants: Vec<Value>,
     lines: Vec<usize>,
 }

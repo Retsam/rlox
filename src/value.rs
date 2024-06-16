@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+#[derive(Clone, Copy)]
 pub struct Value {
     val: f64,
 }
