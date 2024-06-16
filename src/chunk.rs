@@ -29,6 +29,7 @@ impl Chunk {
                 self.write_code(Opcode::Constant.into(), line);
                 self.write_code(val, line)
             }
+            Op::Negate => self.write_code(Opcode::Negate.into(), line),
         }
     }
     fn write_code(&mut self, code: u8, line: usize) {

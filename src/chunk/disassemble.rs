@@ -41,6 +41,9 @@ impl Chunk {
                 let val = self.get_constant_unwrap(const_idx);
                 print!("{:16} {const_idx:4} '{val}'", "OP_CONSTANT")
             }
+            Ok(Opcode::Negate) => {
+                print!("OP_NEGATE")
+            }
             Err(ins) => print!("Unknown opcode {ins}"),
         }
         println!();

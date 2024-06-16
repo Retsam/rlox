@@ -10,7 +10,7 @@ pub struct VM {
 
 pub enum InterpretError {
     CompileError(String),
-    RuntimeError,
+    RuntimeError(String),
 }
 type InterpretResult = Result<(), InterpretError>;
 
@@ -64,8 +64,17 @@ impl VM {
     fn read_constant<'a>(&mut self, chunk: &'a Chunk) -> &'a Value {
         chunk.get_constant_unwrap(self.read_byte(chunk))
     }
-
     pub fn run(&mut self, chunk: &Chunk) -> InterpretResult {
+        macro_rules! push {
+            ($expression:expr) => {
+                self.values.push($expression)
+            };
+        }
+        macro_rules! pop {
+            () => {
+                self.values.pop()
+            };
+        }
         loop {
             if cfg!(feature = "DEBUG_TRACE_EXECUTION") {
                 self.values.debug();
@@ -73,13 +82,21 @@ impl VM {
             }
             match self.read_byte(chunk).try_into() {
                 Ok(Opcode::Return) => {
-                    println!("{}", self.values.pop());
+                    println!("{}", pop!());
                     return Ok(());
                 }
                 Ok(Opcode::Constant) => {
                     let val = self.read_constant(chunk);
-                    self.values.push(*val);
+                    push!(*val);
                 }
+                Ok(Opcode::Negate) => match pop!().as_float() {
+                    Some(v) => push!(Value::of_float(-v)),
+                    None => {
+                        return Err(InterpretError::RuntimeError(
+                            "Attempted to negate non-number".to_string(),
+                        ))
+                    }
+                },
                 Err(code) => {
                     return Err(InterpretError::CompileError(format!(
                         "Invalid opcode {code}"

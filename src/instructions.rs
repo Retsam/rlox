@@ -8,8 +8,9 @@ use std::mem::transmute;
 pub enum Opcode {
     Return = 1,
     Constant = 2,
+    Negate = 3,
 }
-const OPCODE_MAX: u8 = (Opcode::Constant) as u8;
+const OPCODE_MAX: u8 = (Opcode::Negate) as u8;
 
 impl TryFrom<u8> for Opcode {
     type Error = u8;
@@ -33,4 +34,5 @@ impl From<Opcode> for u8 {
 pub enum Op {
     Return,
     Constant(/* the index of the constant */ u8),
+    Negate,
 }
