@@ -1,4 +1,4 @@
-use crate::{chunk::Chunk, instructions::opcode};
+use crate::{chunk::Chunk, instructions::Opcode};
 
 impl Chunk {
     pub fn disassemble(&self, name: &str) {
@@ -32,17 +32,16 @@ impl Chunk {
         } else {
             print!("   | ")
         }
-        let ins = read_byte(&mut offset);
-        match ins {
-            opcode::RETURN => {
+        match read_byte(&mut offset).try_into() {
+            Ok(Opcode::Return) => {
                 print!("OP_RETURN")
             }
-            opcode::CONSTANT => {
+            Ok(Opcode::Constant) => {
                 let const_idx = read_byte(&mut offset);
                 let val = self.get_constant_unwrap(const_idx);
                 print!("{:16} {const_idx:4} '{val}'", "OP_CONSTANT")
             }
-            _ => print!("Unknown opcode {ins}"),
+            Err(ins) => print!("Unknown opcode {ins}"),
         }
         println!();
         offset

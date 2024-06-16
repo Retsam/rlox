@@ -1,7 +1,7 @@
 mod disassemble;
 
 use crate::{
-    instructions::{opcode, Op},
+    instructions::{Op, Opcode},
     value::Value,
 };
 
@@ -24,9 +24,9 @@ impl Chunk {
     }
     pub fn write(&mut self, ins: Op, line: usize) {
         match ins {
-            Op::Return => self.write_code(opcode::RETURN, line),
+            Op::Return => self.write_code(Opcode::Return.into(), line),
             Op::Constant(val) => {
-                self.write_code(opcode::CONSTANT, line);
+                self.write_code(Opcode::Constant.into(), line);
                 self.write_code(val, line)
             }
         }

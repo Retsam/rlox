@@ -1,4 +1,4 @@
-use crate::{chunk::Chunk, instructions::opcode, value::Value};
+use crate::{chunk::Chunk, instructions::Opcode, value::Value};
 
 const STACK_MAX: usize = 256;
 
@@ -71,18 +71,18 @@ impl VM {
                 self.values.debug();
                 chunk.disassemble_instruction(self.ip);
             }
-            match self.read_byte(chunk) {
-                opcode::RETURN => {
+            match self.read_byte(chunk).try_into() {
+                Ok(Opcode::Return) => {
                     println!("{}", self.values.pop());
                     return Ok(());
                 }
-                opcode::CONSTANT => {
+                Ok(Opcode::Constant) => {
                     let val = self.read_constant(chunk);
                     self.values.push(*val);
                 }
-                other => {
+                Err(code) => {
                     return Err(InterpretError::CompileError(format!(
-                        "Invalid opcode {other}"
+                        "Invalid opcode {code}"
                     )));
                 }
             }
