@@ -30,6 +30,10 @@ impl Chunk {
                 self.write_code(val, line)
             }
             Op::Negate => self.write_code(Opcode::Negate.into(), line),
+            Op::Add => self.write_code(Opcode::Add.into(), line),
+            Op::Subtract => self.write_code(Opcode::Subtract.into(), line),
+            Op::Multiply => self.write_code(Opcode::Multiply.into(), line),
+            Op::Divide => self.write_code(Opcode::Divide.into(), line),
         }
     }
     fn write_code(&mut self, code: u8, line: usize) {

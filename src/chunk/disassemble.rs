@@ -33,17 +33,17 @@ impl Chunk {
             print!("   | ")
         }
         match read_byte(&mut offset).try_into() {
-            Ok(Opcode::Return) => {
-                print!("OP_RETURN")
-            }
+            Ok(Opcode::Return) => print!("OP_RETURN"),
             Ok(Opcode::Constant) => {
                 let const_idx = read_byte(&mut offset);
                 let val = self.get_constant_unwrap(const_idx);
                 print!("{:16} {const_idx:4} '{val}'", "OP_CONSTANT")
             }
-            Ok(Opcode::Negate) => {
-                print!("OP_NEGATE")
-            }
+            Ok(Opcode::Negate) => print!("OP_NEGATE"),
+            Ok(Opcode::Add) => print!("OP_ADD"),
+            Ok(Opcode::Subtract) => print!("OP_SUBTRACT"),
+            Ok(Opcode::Multiply) => print!("OP_MULTIPLY"),
+            Ok(Opcode::Divide) => print!("OP_DIVIDE"),
             Err(ins) => print!("Unknown opcode {ins}"),
         }
         println!();

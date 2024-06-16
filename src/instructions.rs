@@ -9,8 +9,12 @@ pub enum Opcode {
     Return = 1,
     Constant = 2,
     Negate = 3,
+    Add = 4,
+    Subtract = 5,
+    Multiply = 6,
+    Divide = 7,
 }
-const OPCODE_MAX: u8 = (Opcode::Negate) as u8;
+const OPCODE_MAX: u8 = (Opcode::Divide) as u8;
 
 impl TryFrom<u8> for Opcode {
     type Error = u8;
@@ -35,4 +39,8 @@ pub enum Op {
     Return,
     Constant(/* the index of the constant */ u8),
     Negate,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
 }

@@ -35,9 +35,9 @@ impl ValueStack {
         self.values[self.stack_top].expect("stack should not be empty")
     }
     pub fn debug(&self) {
-        print!("[");
+        print!("[ ");
         for i in 0..self.stack_top {
-            print!("{}", self.values[i].expect("stack should not be empty"))
+            print!("{} ", self.values[i].expect("stack should not be empty"))
         }
         println!("]");
     }
@@ -80,6 +80,18 @@ impl VM {
                 self.values.debug();
                 chunk.disassemble_instruction(self.ip);
             }
+            // Using a macro, allows returning from outer function
+            macro_rules! binary_op {
+                ($oper:tt) => {
+                    if let (Some(b_val), Some(a_val)) = (pop!().as_float(), pop!().as_float()) {
+                        push!(Value::of_float(a_val $oper b_val))
+                    } else {
+                        return Err(InterpretError::RuntimeError(
+                            "Attempted to apply $oper to non-number operands".to_string(),
+                        ));
+                    }
+                };
+            }
             match self.read_byte(chunk).try_into() {
                 Ok(Opcode::Return) => {
                     println!("{}", pop!());
@@ -97,6 +109,10 @@ impl VM {
                         ))
                     }
                 },
+                Ok(Opcode::Add) => binary_op!(+),
+                Ok(Opcode::Subtract) => binary_op!(-),
+                Ok(Opcode::Multiply) => binary_op!(*),
+                Ok(Opcode::Divide) => binary_op!(/),
                 Err(code) => {
                     return Err(InterpretError::CompileError(format!(
                         "Invalid opcode {code}"
