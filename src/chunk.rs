@@ -40,8 +40,9 @@ impl Chunk {
         self.code.push(code);
         self.lines.push(line);
     }
-    pub fn add_constant(&mut self, value: Value) {
-        self.constants.push(value)
+    pub fn add_constant(&mut self, value: Value) -> u8 {
+        self.constants.push(value);
+        (self.constants.len() - 1) as u8
     }
     pub fn get_constant_unwrap(&self, const_idx: u8) -> &Value {
         self.constants
