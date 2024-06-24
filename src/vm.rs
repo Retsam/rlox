@@ -1,4 +1,4 @@
-use crate::{chunk::Chunk, instructions::Opcode, value::Value};
+use crate::{chunk::Chunk, compiler, instructions::Opcode, value::Value};
 
 const STACK_MAX: usize = 256;
 
@@ -50,9 +50,11 @@ impl VM {
             values: ValueStack::new(),
         }
     }
-    pub fn interpret(&mut self, chunk: &Chunk) -> InterpretResult {
-        self.ip = 0;
-        self.run(chunk)
+    pub fn interpret(&mut self, source: String) -> InterpretResult {
+        compiler::compile(source);
+        Ok(())
+        // self.ip = 0;
+        // self.run(chunk)
     }
 
     fn read_byte(&mut self, chunk: &Chunk) -> u8 {
