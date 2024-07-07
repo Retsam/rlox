@@ -1,3 +1,4 @@
+mod identifier_identifier;
 mod token_kind;
 pub use token_kind::TokenKind;
 
@@ -134,7 +135,8 @@ impl Scanner {
         while self.peek().is_some_and(|x| x.is_ascii_alphanumeric()) {
             self.advance();
         }
-        self.make_token(TokenKind::Identifier)
+        let id_type = self.identifier_type();
+        self.make_token(id_type)
     }
     // Utils
 
