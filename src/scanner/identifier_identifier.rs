@@ -12,6 +12,8 @@ impl Scanner {
     pub fn identifier_type(&mut self) -> TokenKind {
         let word = &self.source[self.start..self.current];
 
+        // The idea is to be efficient, only checking a first letter match, rather than, e.g. looking up in a hash-table, which might be more expensive.
+        // TBH, I'm not sure this is significantly more efficient than just doing a bunch of == comparisons; may want to benchmark it, but this is (roughly) the approach the book took
         macro_rules! simple_match {
             ($match:literal, $kind:ident) => {
                 // Doing slicing indexing here because we know we're only matching ascii here
