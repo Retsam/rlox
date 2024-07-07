@@ -8,7 +8,7 @@ pub fn compile(str: String) {
         if line.is_some_and(|line| line == token.line) {
             print!("   | ");
         } else {
-            print!("{:04}", token.line);
+            print!("{:04} ", token.line);
             line = Some(token.line);
         }
         println!("{:02} '{}'", u8::from(token.kind), token.lexeme);

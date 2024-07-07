@@ -34,12 +34,7 @@ impl Scanner {
             current: 0,
         }
     }
-    pub fn scan_token(&mut self) -> ScanResult {
-        if self.is_at_end() {
-            return self.make_token(TokenKind::Eof);
-        }
-        self.make_error("Unexpected character.")
-    }
+
     fn make_token(&self, kind: TokenKind) -> ScanResult {
         Ok(Token {
             kind,
@@ -53,7 +48,135 @@ impl Scanner {
             line: self.line,
         })
     }
-    fn is_at_end(&self) -> bool {
-        self.current >= self.source.len()
+
+    pub fn scan_token(&mut self) -> ScanResult {
+        self.skip_whitespace();
+        self.start = self.current;
+        match self.advance() {
+            Some('(') => self.make_token(TokenKind::LeftParen),
+            Some(')') => self.make_token(TokenKind::RightParen),
+            Some('{') => self.make_token(TokenKind::LeftBrace),
+            Some('}') => self.make_token(TokenKind::RightBrace),
+            Some(';') => self.make_token(TokenKind::Semicolon),
+            Some(',') => self.make_token(TokenKind::Comma),
+            Some('.') => self.make_token(TokenKind::Dot),
+            Some('-') => self.make_token(TokenKind::Minus),
+            Some('+') => self.make_token(TokenKind::Plus),
+            Some('/') => self.make_token(TokenKind::Slash),
+            Some('*') => self.make_token(TokenKind::Star),
+            Some('!') => {
+                if self.try_match('=') {
+                    self.make_token(TokenKind::BangEqual)
+                } else {
+                    self.make_token(TokenKind::Bang)
+                }
+            }
+            Some('=') => {
+                if self.try_match('=') {
+                    self.make_token(TokenKind::EqualEqual)
+                } else {
+                    self.make_token(TokenKind::Equal)
+                }
+            }
+            Some('<') => {
+                if self.try_match('=') {
+                    self.make_token(TokenKind::LessEqual)
+                } else {
+                    self.make_token(TokenKind::Less)
+                }
+            }
+            Some('>') => {
+                if self.try_match('=') {
+                    self.make_token(TokenKind::GreaterEqual)
+                } else {
+                    self.make_token(TokenKind::Greater)
+                }
+            }
+            Some('"') => self.string(),
+            Some('0'..='9') => self.number(),
+            Some('a'..='z' | 'A'..='Z') => self.identifier(),
+            Some(_) => self.make_error("Unexpected character."),
+            None => self.make_token(TokenKind::Eof),
+        }
+    }
+
+    // Extended scanning logic for complex cases
+
+    fn string(&mut self) -> ScanResult {
+        loop {
+            match self.advance() {
+                None => return self.make_error("Unterminated string."),
+                Some('"') => return self.make_token(TokenKind::String),
+                Some('\n') => self.line += 1,
+                Some(_) => {}
+            }
+        }
+    }
+    fn is_digit(opt: Option<char>) -> bool {
+        opt.is_some_and(|x| x.is_ascii_digit())
+    }
+    fn number(&mut self) -> ScanResult {
+        while Self::is_digit(self.peek()) {
+            self.advance();
+        }
+        // Fractional part
+        if matches!(self.peek(), Some('.')) && Self::is_digit(self.peek_next()) {
+            // Consume the "."
+            self.advance();
+            while Self::is_digit(self.peek()) {
+                self.advance();
+            }
+        }
+
+        self.make_token(TokenKind::Number)
+    }
+    fn identifier(&mut self) -> ScanResult {
+        while self.peek().is_some_and(|x| x.is_ascii_alphanumeric()) {
+            self.advance();
+        }
+        self.make_token(TokenKind::Identifier)
+    }
+    // Utils
+
+    fn skip_whitespace(&mut self) {
+        loop {
+            match (self.peek(), self.peek_next()) {
+                (Some(' ' | '\r' | '\t'), _) => {
+                    self.advance();
+                }
+                (Some('\n'), _) => {
+                    self.line += 1;
+                    self.advance();
+                }
+                (Some('/'), Some('/')) => loop {
+                    if let None | Some('\n') = self.peek() {
+                        break;
+                    }
+                    self.advance();
+                },
+                _ => return,
+            };
+        }
+    }
+
+    fn advance(&mut self) -> Option<char> {
+        let r = self.peek();
+        if r.is_some() {
+            self.current += 1;
+        }
+        r
+    }
+    fn try_match(&mut self, expected: char) -> bool {
+        let res = self.source.chars().nth(self.current) == Some(expected);
+        if res {
+            self.current += 1;
+        }
+        res
+    }
+    fn peek(&self) -> Option<char> {
+        self.source.chars().nth(self.current)
+    }
+    fn peek_next(&self) -> Option<char> {
+        self.source.chars().nth(self.current + 1)
     }
 }
