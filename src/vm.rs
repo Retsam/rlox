@@ -51,10 +51,11 @@ impl VM {
         }
     }
     pub fn interpret(&mut self, source: String) -> InterpretResult {
-        compiler::compile(source);
-        Ok(())
-        // self.ip = 0;
-        // self.run(chunk)
+        let chunk = compiler::compile(source).map_err(|e| {
+            InterpretError::CompileError(format!("Failed to compile at {}: {}", e.line, e.msg))
+        })?;
+        self.ip = 0;
+        self.run(&chunk)
     }
 
     fn read_byte(&mut self, chunk: &Chunk) -> u8 {

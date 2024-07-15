@@ -9,7 +9,7 @@ fn match_rest(expected: &'static str, actual: &str, skip: usize, if_match: Token
 }
 
 impl Scanner {
-    pub fn identifier_type(&mut self) -> TokenKind {
+    pub(super) fn identifier_type(&mut self) -> TokenKind {
         let word = &self.source[self.start..self.current];
 
         // The idea is to be efficient, only checking a first letter match, rather than, e.g. looking up in a hash-table, which might be more expensive.
