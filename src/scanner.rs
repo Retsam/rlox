@@ -2,9 +2,9 @@ mod identifier_identifier;
 mod token_kind;
 pub use token_kind::TokenKind;
 
-pub struct Token<'a> {
+pub struct Token {
     pub kind: TokenKind,
-    pub lexeme: &'a str,
+    pub lexeme: String,
     pub line: usize,
 }
 
@@ -21,11 +21,12 @@ pub struct Scanner {
     current: usize,
 }
 
-pub struct ScanErr<'a> {
+#[derive(Clone)]
+pub struct ScanErr {
     pub line: usize,
-    pub msg: &'a str,
+    pub msg: String,
 }
-type ScanResult<'a> = Result<Token<'a>, ScanErr<'a>>;
+type ScanResult = Result<Token, ScanErr>;
 impl Scanner {
     pub fn new(source: String) -> Self {
         Self {
@@ -39,13 +40,13 @@ impl Scanner {
     fn make_token(&self, kind: TokenKind) -> ScanResult {
         Ok(Token {
             kind,
-            lexeme: &self.source[self.start..self.current],
+            lexeme: self.source[self.start..self.current].to_string(),
             line: self.line,
         })
     }
-    fn make_error<'a>(&'a self, msg: &'a str) -> ScanResult<'a> {
+    fn make_error(&self, msg: &str) -> ScanResult {
         Err(ScanErr {
-            msg,
+            msg: msg.to_string(),
             line: self.line,
         })
     }
