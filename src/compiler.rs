@@ -63,7 +63,8 @@ impl Parser {
                     break Some(token);
                 }
                 Err(err) => {
-                    self.error_at_current(&err.msg);
+                    self.print_err(&err.msg, err.line, None);
+                    self.mark_error_state();
                 }
             }
         };
@@ -75,32 +76,36 @@ impl Parser {
         }
         self.error_at_current(err);
     }
+
+    // Top-level error methods
     fn error_at_current(&mut self, err: &str) {
-        self.error_at(err, self.current.as_ref().unwrap());
-        // Ideally would put this in self.errorAt, but that requires a mutable borrow which conflicts with the immutable borrow of &self.current
-        self.had_error = true;
-        self.panic_mode = true;
+        self.error_at_token(err, self.current.as_ref().unwrap());
+        self.mark_error_state();
     }
     fn error(&mut self, err: &str) {
-        self.error_at(err, self.previous.as_ref().unwrap());
-
+        self.error_at_token(err, self.previous.as_ref().unwrap());
+        self.mark_error_state();
+    }
+    // Ideally would put this in self.errorAt, but that requires a mutable borrow which conflicts with the immutable borrow of &self.current
+    fn mark_error_state(&mut self) {
         self.had_error = true;
         self.panic_mode = true;
     }
-    fn error_at(&self, err: &str, token: &Token) {
+    fn error_at_token(&self, err: &str, token: &Token) {
+        let at = if token.kind == TokenKind::Eof {
+            "end"
+        } else {
+            &token.lexeme
+        };
+        self.print_err(err, token.line, Some(at));
+    }
+
+    fn print_err(&self, err: &str, line: usize, at: Option<&str>) {
         if self.panic_mode {
             return;
         }
-        eprint!("[line {}] Error", token.line);
-        eprint!(
-            " at '{}'",
-            if token.kind == TokenKind::Eof {
-                "end"
-            } else {
-                &token.lexeme
-            }
-        );
-        eprintln!(": {}", err);
+        let at_str = at.map_or("".to_string(), |lex| format!(" at {lex}"));
+        eprintln!("[line {line}] Error{at_str}: {err}");
     }
 }
 
