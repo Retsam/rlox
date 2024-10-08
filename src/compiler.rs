@@ -1,15 +1,36 @@
 use crate::chunk::Chunk;
+use crate::instructions::Op;
 use crate::scanner::{ScanErr, Scanner, Token, TokenKind};
+use crate::value::Value;
 
 type CompileErr = ScanErr;
 
 pub fn compile(str: String) -> Result<Chunk, CompileErr> {
+    let mut chunk = Chunk::new();
     let mut parser = Parser::new(Scanner::new(str));
 
-    let mut chunk = Chunk::new();
     parser.advance();
+    parser.expression(&mut chunk);
 
-    Ok(chunk)
+    parser.consume(TokenKind::Eof, "Expected end of expression.");
+
+    end_compiler(&parser, &mut chunk);
+    // TODO, fix this
+    if parser.had_error {
+        Err(CompileErr {
+            msg: "Compilation failed".to_string(),
+            line: 0,
+        })
+    } else {
+        Ok(chunk)
+    }
+}
+
+fn end_compiler(parser: &Parser, chunk: &mut Chunk) {
+    parser.emit_ins(chunk, Op::Return);
+    if cfg!(feature = "DEBUG_PRINT_CODE") && !parser.had_error {
+        chunk.disassemble("code");
+    }
 }
 
 struct Parser {
@@ -19,6 +40,7 @@ struct Parser {
     had_error: bool,
     panic_mode: bool,
 }
+// The basic parser operations - advance, consume, etc
 impl Parser {
     fn new(scanner: Scanner) -> Parser {
         Parser {
@@ -29,6 +51,12 @@ impl Parser {
             panic_mode: false,
         }
     }
+    fn assert_prev(&self) -> &Token {
+        self.previous.as_ref().unwrap()
+    }
+    fn assert_current(&self) -> &Token {
+        self.current.as_ref().unwrap()
+    }
     fn advance(&mut self) {
         self.previous = self.current.take();
         self.current = loop {
@@ -37,40 +65,235 @@ impl Parser {
                     break Some(token);
                 }
                 Err(err) => {
-                    self.error_at_current(err);
+                    self.error_at_current(&err.msg);
                 }
             }
         };
     }
-    fn consume(&mut self, expected: TokenKind, err: CompileErr) {
+    fn consume(&mut self, expected: TokenKind, err: &str) {
         if self.current.as_ref().is_some_and(|t| t.kind == expected) {
             self.advance();
             return;
         }
         self.error_at_current(err);
     }
-    fn error_at_current(&mut self, err: CompileErr) {
-        self.error_at(err, &self.current);
+    fn error_at_current(&mut self, err: &str) {
+        self.error_at(err, self.current.as_ref().unwrap());
         // Ideally would put this in self.errorAt, but that requires a mutable borrow which conflicts with the immutable borrow of &self.current
         self.had_error = true;
         self.panic_mode = true;
     }
-    fn error_at(&self, err: CompileErr, token: &Option<Token>) {
+    fn error(&mut self, err: &str) {
+        self.error_at(err, self.previous.as_ref().unwrap());
+
+        self.had_error = true;
+        self.panic_mode = true;
+    }
+    fn error_at(&self, err: &str, token: &Token) {
         if self.panic_mode {
             return;
         }
-        eprint!("[line {}] Error", err.line);
-        match token {
-            Some(token) => eprint!(
-                " at '{}'",
-                if token.kind == TokenKind::Eof {
-                    "end"
-                } else {
-                    &token.lexeme
-                }
-            ),
-            None => (),
+        eprint!("[line {}] Error", token.line);
+        eprint!(
+            " at '{}'",
+            if token.kind == TokenKind::Eof {
+                "end"
+            } else {
+                &token.lexeme
+            }
+        );
+        eprintln!(": {}", err);
+    }
+}
+
+impl Parser {
+    fn emit_ins(&self, chunk: &mut Chunk, ins: Op) {
+        chunk.write(ins, self.previous.as_ref().unwrap().line);
+    }
+    fn make_constant(&mut self, chunk: &mut Chunk, val: Value) -> Option<u8> {
+        let res = chunk.add_constant(val);
+        res.or_else(|| {
+            self.error("Too many constants in one chunk.");
+            None
+        })
+    }
+    fn emit_constant(&mut self, chunk: &mut Chunk, val: Value) {
+        match self.make_constant(chunk, val) {
+            Some(constant) => self.emit_ins(chunk, Op::Constant(constant)),
+            None => { /* original code emits OP_CONSTANT 0 on error */ }
         }
-        eprintln!(": {}", err.msg);
+    }
+}
+// The specific, language structure related stuff
+impl Parser {
+    // Parses everything at the given precedence level (or higher)
+    fn parse_precedence(&mut self, chunk: &mut Chunk, precedence: ParsePrecedence) {
+        self.advance();
+        let prev = self.assert_prev();
+        let Some(prefix) = Parser::get_rule(prev.kind).prefix else {
+            self.error("Expect expression");
+            return;
+        };
+        prefix(self, chunk);
+
+        while precedence
+            < Parser::get_rule(self.assert_current().kind)
+                .precedence
+                .unwrap_or(ParsePrecedence::Assignment)
+        {
+            self.advance();
+            let infix = Parser::get_rule(self.assert_prev().kind)
+                .infix
+                .expect("Expect infix rule");
+
+            infix(self, chunk);
+        }
+    }
+
+    fn expression(&mut self, chunk: &mut Chunk) {
+        self.parse_precedence(chunk, ParsePrecedence::Assignment);
+    }
+
+    fn number(&mut self, chunk: &mut Chunk) {
+        // kind of awkward that we just read previous and hope it's a Number token, but I don't want to go crazy
+        // on architecture changes here
+        let val = self
+            .assert_prev()
+            .lexeme
+            .parse::<f64>()
+            .expect("Tried to parse a number but failed");
+        self.emit_constant(chunk, Value::of_float(val));
+    }
+    fn grouping(&mut self, chunk: &mut Chunk) {
+        self.expression(chunk);
+        self.consume(TokenKind::RightParen, "Expected ')' after expression.");
+    }
+    fn unary(&mut self, chunk: &mut Chunk) {
+        let op = match self.assert_prev().kind {
+            TokenKind::Minus => Op::Negate,
+            _ => {
+                self.error("Expected unary operator.");
+                return;
+            }
+        };
+        self.parse_precedence(chunk, ParsePrecedence::Unary);
+        self.emit_ins(chunk, op);
+    }
+
+    fn binary(&mut self, chunk: &mut Chunk) {
+        // lhs side has already been parsed
+
+        let operator = self.assert_prev().kind;
+
+        let rule = Parser::get_rule(operator);
+        let precedence = rule
+            .precedence
+            .expect("Couldn't get precedence for binary operator");
+
+        self.parse_precedence(chunk, precedence.next());
+        self.emit_ins(
+            chunk,
+            match operator {
+                TokenKind::Plus => Op::Add,
+                TokenKind::Minus => Op::Subtract,
+                TokenKind::Star => Op::Multiply,
+                TokenKind::Slash => Op::Divide,
+                _ => panic!("Unexpected token as binary operator"),
+            },
+        );
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[repr(u8)]
+enum ParsePrecedence {
+    // None,
+    Assignment, // =
+    Or,         // or
+    And,        // and
+    Equality,   // == !=
+    Comparison, // < > <= >=
+    Term,       // + -
+    Factor,     // * /
+    Unary,      // ! -
+    Call,       // . ()
+    Primary,
+}
+impl ParsePrecedence {
+    fn next(&self) -> ParsePrecedence {
+        match self {
+            ParsePrecedence::Assignment => ParsePrecedence::Or,
+            ParsePrecedence::Or => ParsePrecedence::And,
+            ParsePrecedence::And => ParsePrecedence::Equality,
+            ParsePrecedence::Equality => ParsePrecedence::Comparison,
+            ParsePrecedence::Comparison => ParsePrecedence::Term,
+            ParsePrecedence::Term => ParsePrecedence::Factor,
+            ParsePrecedence::Factor => ParsePrecedence::Unary,
+            ParsePrecedence::Unary => ParsePrecedence::Call,
+            ParsePrecedence::Call => ParsePrecedence::Primary,
+            ParsePrecedence::Primary => ParsePrecedence::Primary,
+        }
+    }
+}
+
+type ParseFn = fn(&mut Parser, &mut Chunk);
+struct ParseRule {
+    prefix: Option<ParseFn>,
+    infix: Option<ParseFn>,
+    precedence: Option<ParsePrecedence>,
+}
+impl ParseRule {
+    fn new(
+        prefix: Option<ParseFn>,
+        infix: Option<ParseFn>,
+        precedence: Option<ParsePrecedence>,
+    ) -> ParseRule {
+        ParseRule {
+            prefix,
+            infix,
+            precedence,
+        }
+    }
+}
+
+macro_rules! parse_rule {
+    (None, None, None) => {
+        ParseRule::new(None, None, None)
+    };
+    (None, $inf:ident, $precedence:ident) => {
+        ParseRule::new(None, Some(Parser::$inf), Some(ParsePrecedence::$precedence))
+    };
+    ($pre:ident, None, None) => {
+        ParseRule::new(Some(Parser::$pre), None, None)
+    };
+    ($pre:ident, $inf:ident, $precedence:ident) => {
+        ParseRule::new(
+            Some(Parser::$pre),
+            Some(Parser::$inf),
+            Some(ParsePrecedence::$precedence),
+        )
+    };
+}
+
+impl Parser {
+    fn get_rule(kind: TokenKind) -> ParseRule {
+        match kind {
+            TokenKind::LeftParen => {
+                parse_rule!(grouping, None, None)
+            }
+            TokenKind::Minus => {
+                parse_rule!(unary, binary, Term)
+            }
+            TokenKind::Plus => {
+                parse_rule!(None, binary, Term)
+            }
+            TokenKind::Slash | TokenKind::Star => {
+                parse_rule!(None, binary, Factor)
+            }
+            TokenKind::Number => {
+                parse_rule!(number, None, None)
+            }
+            _ => parse_rule!(None, None, None),
+        }
     }
 }

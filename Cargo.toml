@@ -9,3 +9,4 @@ edition = "2021"
 
 [features]
 DEBUG_TRACE_EXECUTION = []
+DEBUG_PRINT_CODE = []

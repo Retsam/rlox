@@ -35,7 +35,7 @@ fn repl() -> io::Result<()> {
         if buf == "\n" {
             break;
         }
-        let _ = vm.interpret(buf);
+        vm.interpret(buf);
     }
     Ok(())
 }
@@ -46,5 +46,5 @@ fn run_file(path: &str) {
         exit(74)
     });
     let mut vm = VM::new();
-    let _ = vm.interpret(source);
+    vm.interpret(source);
 }
