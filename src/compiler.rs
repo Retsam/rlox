@@ -8,7 +8,6 @@ type CompileErr = ScanErr;
 pub fn compile(str: String) -> Result<Chunk, CompileErr> {
     let mut parser = Parser::new(Scanner::new(str));
 
-    parser.advance();
     parser.expression();
 
     parser.consume(TokenKind::Eof, "Expected end of expression.");
@@ -33,34 +32,42 @@ struct Parser {
     scanner: Scanner,
     chunk: Chunk,
     previous: Option<Token>,
-    current: Option<Token>,
+    current: Token,
     had_error: bool,
     panic_mode: bool,
 }
+
+fn stub_token() -> Token {
+    Token {
+        kind: TokenKind::Eof,
+        lexeme: "".to_string(),
+        line: 0,
+    }
+}
+
 // The basic parser operations - advance, consume, etc
 impl Parser {
     fn new(scanner: Scanner) -> Parser {
-        Parser {
+        let mut p = Parser {
             scanner,
             chunk: Chunk::new(),
             previous: None,
-            current: None,
+            // We immediately advance the parser which will override this anyway - not worth making this an Option
+            current: stub_token(),
             had_error: false,
             panic_mode: false,
-        }
+        };
+        p.advance();
+        p
     }
     fn assert_prev(&self) -> &Token {
         self.previous.as_ref().unwrap()
     }
-    fn assert_current(&self) -> &Token {
-        self.current.as_ref().unwrap()
-    }
     fn advance(&mut self) {
-        self.previous = self.current.take();
-        self.current = loop {
+        let new_token = loop {
             match self.scanner.scan_token() {
                 Ok(token) => {
-                    break Some(token);
+                    break token;
                 }
                 Err(err) => {
                     self.print_err(&err.msg, err.line, None);
@@ -68,9 +75,10 @@ impl Parser {
                 }
             }
         };
+        self.previous = Some(std::mem::replace(&mut self.current, new_token));
     }
     fn consume(&mut self, expected: TokenKind, err: &str) {
-        if self.current.as_ref().is_some_and(|t| t.kind == expected) {
+        if self.current.kind == expected {
             self.advance();
             return;
         }
@@ -79,7 +87,7 @@ impl Parser {
 
     // Top-level error methods
     fn error_at_current(&mut self, err: &str) {
-        self.error_at_token(err, self.current.as_ref().unwrap());
+        self.error_at_token(err, &self.current);
         self.mark_error_state();
     }
     fn error(&mut self, err: &str) {
@@ -140,7 +148,7 @@ impl Parser {
         prefix(self);
 
         while precedence
-            < Parser::get_rule(self.assert_current().kind)
+            < Parser::get_rule(self.current.kind)
                 .precedence
                 .unwrap_or(ParsePrecedence::Assignment)
         {
