@@ -1,5 +1,5 @@
 #[repr(u8)]
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TokenKind {
     // Single-character tokens.
     LeftParen,

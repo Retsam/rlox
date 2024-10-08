@@ -2,6 +2,7 @@ mod identifier_identifier;
 mod token_kind;
 pub use token_kind::TokenKind;
 
+#[derive(Debug)]
 pub struct Token {
     pub kind: TokenKind,
     pub lexeme: String,
