@@ -6,15 +6,13 @@ use crate::value::Value;
 type CompileErr = ScanErr;
 
 pub fn compile(str: String) -> Result<Chunk, CompileErr> {
-    let mut chunk = Chunk::new();
     let mut parser = Parser::new(Scanner::new(str));
 
     parser.advance();
-    parser.expression(&mut chunk);
+    parser.expression();
 
     parser.consume(TokenKind::Eof, "Expected end of expression.");
 
-    end_compiler(&parser, &mut chunk);
     // TODO, fix this
     if parser.had_error {
         Err(CompileErr {
@@ -22,19 +20,18 @@ pub fn compile(str: String) -> Result<Chunk, CompileErr> {
             line: 0,
         })
     } else {
-        Ok(chunk)
-    }
-}
-
-fn end_compiler(parser: &Parser, chunk: &mut Chunk) {
-    parser.emit_ins(chunk, Op::Return);
-    if cfg!(feature = "DEBUG_PRINT_CODE") && !parser.had_error {
-        chunk.disassemble("code");
+        // end_compiler functionality
+        parser.emit_ins(Op::Return);
+        if cfg!(feature = "DEBUG_PRINT_CODE") && !parser.had_error {
+            parser.chunk.disassemble("code");
+        }
+        Ok(parser.chunk)
     }
 }
 
 struct Parser {
     scanner: Scanner,
+    chunk: Chunk,
     previous: Option<Token>,
     current: Option<Token>,
     had_error: bool,
@@ -45,6 +42,7 @@ impl Parser {
     fn new(scanner: Scanner) -> Parser {
         Parser {
             scanner,
+            chunk: Chunk::new(),
             previous: None,
             current: None,
             had_error: false,
@@ -107,19 +105,19 @@ impl Parser {
 }
 
 impl Parser {
-    fn emit_ins(&self, chunk: &mut Chunk, ins: Op) {
-        chunk.write(ins, self.previous.as_ref().unwrap().line);
+    fn emit_ins(&mut self, ins: Op) {
+        self.chunk.write(ins, self.previous.as_ref().unwrap().line);
     }
-    fn make_constant(&mut self, chunk: &mut Chunk, val: Value) -> Option<u8> {
-        let res = chunk.add_constant(val);
+    fn make_constant(&mut self, val: Value) -> Option<u8> {
+        let res = self.chunk.add_constant(val);
         res.or_else(|| {
             self.error("Too many constants in one chunk.");
             None
         })
     }
-    fn emit_constant(&mut self, chunk: &mut Chunk, val: Value) {
-        match self.make_constant(chunk, val) {
-            Some(constant) => self.emit_ins(chunk, Op::Constant(constant)),
+    fn emit_constant(&mut self, val: Value) {
+        match self.make_constant(val) {
+            Some(constant) => self.emit_ins(Op::Constant(constant)),
             None => { /* original code emits OP_CONSTANT 0 on error */ }
         }
     }
@@ -127,14 +125,14 @@ impl Parser {
 // The specific, language structure related stuff
 impl Parser {
     // Parses everything at the given precedence level (or higher)
-    fn parse_precedence(&mut self, chunk: &mut Chunk, precedence: ParsePrecedence) {
+    fn parse_precedence(&mut self, precedence: ParsePrecedence) {
         self.advance();
         let prev = self.assert_prev();
         let Some(prefix) = Parser::get_rule(prev.kind).prefix else {
             self.error("Expect expression");
             return;
         };
-        prefix(self, chunk);
+        prefix(self);
 
         while precedence
             < Parser::get_rule(self.assert_current().kind)
@@ -146,15 +144,15 @@ impl Parser {
                 .infix
                 .expect("Expect infix rule");
 
-            infix(self, chunk);
+            infix(self);
         }
     }
 
-    fn expression(&mut self, chunk: &mut Chunk) {
-        self.parse_precedence(chunk, ParsePrecedence::Assignment);
+    fn expression(&mut self) {
+        self.parse_precedence(ParsePrecedence::Assignment);
     }
 
-    fn number(&mut self, chunk: &mut Chunk) {
+    fn number(&mut self) {
         // kind of awkward that we just read previous and hope it's a Number token, but I don't want to go crazy
         // on architecture changes here
         let val = self
@@ -162,13 +160,13 @@ impl Parser {
             .lexeme
             .parse::<f64>()
             .expect("Tried to parse a number but failed");
-        self.emit_constant(chunk, Value::of_float(val));
+        self.emit_constant(Value::of_float(val));
     }
-    fn grouping(&mut self, chunk: &mut Chunk) {
-        self.expression(chunk);
+    fn grouping(&mut self) {
+        self.expression();
         self.consume(TokenKind::RightParen, "Expected ')' after expression.");
     }
-    fn unary(&mut self, chunk: &mut Chunk) {
+    fn unary(&mut self) {
         let op = match self.assert_prev().kind {
             TokenKind::Minus => Op::Negate,
             _ => {
@@ -176,11 +174,11 @@ impl Parser {
                 return;
             }
         };
-        self.parse_precedence(chunk, ParsePrecedence::Unary);
-        self.emit_ins(chunk, op);
+        self.parse_precedence(ParsePrecedence::Unary);
+        self.emit_ins(op);
     }
 
-    fn binary(&mut self, chunk: &mut Chunk) {
+    fn binary(&mut self) {
         // lhs side has already been parsed
 
         let operator = self.assert_prev().kind;
@@ -190,17 +188,14 @@ impl Parser {
             .precedence
             .expect("Couldn't get precedence for binary operator");
 
-        self.parse_precedence(chunk, precedence.next());
-        self.emit_ins(
-            chunk,
-            match operator {
-                TokenKind::Plus => Op::Add,
-                TokenKind::Minus => Op::Subtract,
-                TokenKind::Star => Op::Multiply,
-                TokenKind::Slash => Op::Divide,
-                _ => panic!("Unexpected token as binary operator"),
-            },
-        );
+        self.parse_precedence(precedence.next());
+        self.emit_ins(match operator {
+            TokenKind::Plus => Op::Add,
+            TokenKind::Minus => Op::Subtract,
+            TokenKind::Star => Op::Multiply,
+            TokenKind::Slash => Op::Divide,
+            _ => panic!("Unexpected token as binary operator"),
+        });
     }
 }
 
@@ -236,7 +231,7 @@ impl ParsePrecedence {
     }
 }
 
-type ParseFn = fn(&mut Parser, &mut Chunk);
+type ParseFn = fn(&mut Parser);
 struct ParseRule {
     prefix: Option<ParseFn>,
     infix: Option<ParseFn>,
