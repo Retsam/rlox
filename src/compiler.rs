@@ -91,7 +91,7 @@ impl Parser {
         self.mark_error_state();
     }
     fn error(&mut self, err: &str) {
-        self.error_at_token(err, self.previous.as_ref().unwrap());
+        self.error_at_token(err, self.assert_prev());
         self.mark_error_state();
     }
     // Ideally would put this in self.errorAt, but that requires a mutable borrow which conflicts with the immutable borrow of &self.current
@@ -119,7 +119,7 @@ impl Parser {
 
 impl Parser {
     fn emit_ins(&mut self, ins: Op) {
-        self.chunk.write(ins, self.previous.as_ref().unwrap().line);
+        self.chunk.write(ins, self.assert_prev().line);
     }
     fn make_constant(&mut self, val: Value) -> Option<u8> {
         let res = self.chunk.add_constant(val);
