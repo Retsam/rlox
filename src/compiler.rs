@@ -71,7 +71,6 @@ impl Parser {
                 }
                 Err(err) => {
                     self.print_err(&err.msg, err.line, None);
-                    self.mark_error_state();
                 }
             }
         };
@@ -87,33 +86,36 @@ impl Parser {
 
     // Top-level error methods
     fn error_at_current(&mut self, err: &str) {
-        self.error_at_token(err, &self.current);
-        self.mark_error_state();
+        self.error_at_token(err, |s| &s.current);
     }
     fn error(&mut self, err: &str) {
-        self.error_at_token(err, self.assert_prev());
-        self.mark_error_state();
+        self.error_at_token(err, |s| s.assert_prev());
     }
-    // Ideally would put this in self.errorAt, but that requires a mutable borrow which conflicts with the immutable borrow of &self.current
-    fn mark_error_state(&mut self) {
-        self.had_error = true;
-        self.panic_mode = true;
-    }
-    fn error_at_token(&self, err: &str, token: &Token) {
+    fn error_at_token<F>(&mut self, err: &str, get_token: F)
+    where
+        F: Fn(&Self) -> &Token,
+    {
+        // This is taken as a callback so the caller doesn't have to borrow self.current or self.previous while also mutably borrowing self for this method
+        let token = get_token(self);
+
         let at = if token.kind == TokenKind::Eof {
-            "end"
+            " at end"
         } else {
-            &token.lexeme
+            &format!(" at {}", token.lexeme)
         };
+
         self.print_err(err, token.line, Some(at));
     }
 
-    fn print_err(&self, err: &str, line: usize, at: Option<&str>) {
+    fn print_err(&mut self, err: &str, line: usize, at: Option<&str>) {
         if self.panic_mode {
             return;
         }
-        let at_str = at.map_or("".to_string(), |lex| format!(" at {lex}"));
+        let at_str = at.unwrap_or("");
         eprintln!("[line {line}] Error{at_str}: {err}");
+
+        self.had_error = true;
+        self.panic_mode = true;
     }
 }
 
