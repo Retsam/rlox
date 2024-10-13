@@ -1,31 +1,25 @@
 use crate::chunk::Chunk;
 use crate::instructions::Op;
-use crate::scanner::{ScanErr, Scanner, Token, TokenKind};
+use crate::scanner::{Scanner, Token, TokenKind};
 use crate::value::Value;
 
-type CompileErr = ScanErr;
-
-pub fn compile(str: String) -> Result<Chunk, CompileErr> {
+pub fn compile(str: String) -> Option<Chunk> {
     let mut parser = Parser::new(Scanner::new(str));
 
     parser.expression();
 
     parser.consume(TokenKind::Eof, "Expected end of expression.");
 
-    // TODO, fix this
     if parser.had_error {
-        Err(CompileErr {
-            msg: "Compilation failed".to_string(),
-            line: 0,
-        })
-    } else {
-        // end_compiler functionality
-        parser.emit_ins(Op::Return);
-        if cfg!(feature = "DEBUG_PRINT_CODE") && !parser.had_error {
-            parser.chunk.disassemble("code");
-        }
-        Ok(parser.chunk)
+        return None;
     }
+
+    // end_compiler functionality
+    parser.emit_ins(Op::Return);
+    if cfg!(feature = "DEBUG_PRINT_CODE") && !parser.had_error {
+        parser.chunk.disassemble("code");
+    }
+    Some(parser.chunk)
 }
 
 struct Parser {

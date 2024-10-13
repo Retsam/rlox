@@ -9,8 +9,8 @@ pub struct VM {
 }
 
 pub enum InterpretError {
-    CompileError(String),
-    RuntimeError(String),
+    CompileError,
+    RuntimeError,
 }
 type InterpretResult = Result<(), InterpretError>;
 
@@ -51,9 +51,9 @@ impl VM {
         }
     }
     pub fn interpret(&mut self, source: String) -> InterpretResult {
-        let chunk = compiler::compile(source).map_err(|e| {
-            InterpretError::CompileError(format!("Failed to compile at {}: {}", e.line, e.msg))
-        })?;
+        let Some(chunk) = compiler::compile(source) else {
+            return Err(InterpretError::CompileError);
+        };
         self.ip = 0;
         self.run(&chunk)
     }
@@ -83,15 +83,21 @@ impl VM {
                 self.values.debug();
                 chunk.disassemble_instruction(self.ip);
             }
+            macro_rules! runtime_err {
+                ($str: literal) => {
+                    println!($str);
+                    return Err(InterpretError::RuntimeError)
+                };
+            }
             // Using a macro, allows returning from outer function
             macro_rules! binary_op {
                 ($oper:tt) => {
                     if let (Some(b_val), Some(a_val)) = (pop!().as_float(), pop!().as_float()) {
                         push!(Value::of_float(a_val $oper b_val))
                     } else {
-                        return Err(InterpretError::RuntimeError(
-                            "Attempted to apply $oper to non-number operands".to_string(),
-                        ));
+                        runtime_err!(
+                            "Attempted to apply $oper to non-number operands"
+                        );
                     }
                 };
             }
@@ -107,9 +113,7 @@ impl VM {
                 Ok(Opcode::Negate) => match pop!().as_float() {
                     Some(v) => push!(Value::of_float(-v)),
                     None => {
-                        return Err(InterpretError::RuntimeError(
-                            "Attempted to negate non-number".to_string(),
-                        ))
+                        runtime_err!("Attempted to negate non-number");
                     }
                 },
                 Ok(Opcode::Add) => binary_op!(+),
@@ -117,9 +121,8 @@ impl VM {
                 Ok(Opcode::Multiply) => binary_op!(*),
                 Ok(Opcode::Divide) => binary_op!(/),
                 Err(code) => {
-                    return Err(InterpretError::CompileError(format!(
-                        "Invalid opcode {code}"
-                    )));
+                    println!("Invalid opcode {code}");
+                    return Err(InterpretError::CompileError);
                 }
             }
         }

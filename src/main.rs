@@ -11,7 +11,7 @@ use std::{
     process::exit,
 };
 
-use vm::VM;
+use vm::{InterpretError, VM};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -35,7 +35,7 @@ fn repl() -> io::Result<()> {
         if buf == "\n" {
             break;
         }
-        vm.interpret(buf);
+        let _ = vm.interpret(buf);
     }
     Ok(())
 }
@@ -46,5 +46,9 @@ fn run_file(path: &str) {
         exit(74)
     });
     let mut vm = VM::new();
-    vm.interpret(source);
+    match vm.interpret(source) {
+        Err(InterpretError::CompileError) => exit(65),
+        Err(InterpretError::RuntimeError) => exit(70),
+        Ok(()) => {}
+    }
 }
