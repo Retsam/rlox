@@ -7,12 +7,16 @@ use std::mem::transmute;
 #[repr(u8)]
 pub enum Opcode {
     Return = 1,
-    Constant = 2,
-    Negate = 3,
-    Add = 4,
-    Subtract = 5,
-    Multiply = 6,
-    Divide = 7,
+    Constant,
+    Nil,
+    True,
+    False,
+    Negate,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    // Remember to change OPCODE_MAX if you add another one here
 }
 const OPCODE_MAX: u8 = (Opcode::Divide) as u8;
 
@@ -38,6 +42,9 @@ impl From<Opcode> for u8 {
 pub enum Op {
     Return,
     Constant(/* the index of the constant */ u8),
+    Nil,
+    True,
+    False,
     Negate,
     Add,
     Subtract,

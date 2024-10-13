@@ -169,7 +169,7 @@ impl Parser {
             .lexeme
             .parse::<f64>()
             .expect("Tried to parse a number but failed");
-        self.emit_constant(Value::of_float(val));
+        self.emit_constant(Value::Number(val));
     }
     fn grouping(&mut self) {
         self.expression();
@@ -204,6 +204,14 @@ impl Parser {
             TokenKind::Star => Op::Multiply,
             TokenKind::Slash => Op::Divide,
             _ => panic!("Unexpected token as binary operator"),
+        });
+    }
+    fn literal(&mut self) {
+        self.emit_ins(match self.assert_prev().kind {
+            TokenKind::True => Op::True,
+            TokenKind::False => Op::False,
+            TokenKind::Nil => Op::Nil,
+            _ => panic!("Unexpected literal token"),
         });
     }
 }
@@ -293,6 +301,9 @@ impl Parser {
             }
             TokenKind::Slash | TokenKind::Star => {
                 parse_rule!(None, binary, Factor)
+            }
+            TokenKind::True | TokenKind::False | TokenKind::Nil => {
+                parse_rule!(literal, None, None)
             }
             TokenKind::Number => {
                 parse_rule!(number, None, None)

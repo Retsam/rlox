@@ -11,7 +11,8 @@ pub struct Chunk {
     //   reading and writing, but would be sized to the largest enum variant
     pub code: Vec<u8>,
     constants: Vec<Value>,
-    lines: Vec<usize>,
+    // Public because runtime_error reads this to report the line
+    pub lines: Vec<usize>,
 }
 
 impl Chunk {
@@ -23,17 +24,25 @@ impl Chunk {
         }
     }
     pub fn write(&mut self, ins: Op, line: usize) {
+        macro_rules! simple_op {
+            ($kind: ident) => {
+                self.write_code(Opcode::$kind.into(), line)
+            };
+        }
         match ins {
-            Op::Return => self.write_code(Opcode::Return.into(), line),
             Op::Constant(val) => {
                 self.write_code(Opcode::Constant.into(), line);
                 self.write_code(val, line)
             }
-            Op::Negate => self.write_code(Opcode::Negate.into(), line),
-            Op::Add => self.write_code(Opcode::Add.into(), line),
-            Op::Subtract => self.write_code(Opcode::Subtract.into(), line),
-            Op::Multiply => self.write_code(Opcode::Multiply.into(), line),
-            Op::Divide => self.write_code(Opcode::Divide.into(), line),
+            Op::Return => simple_op!(Return),
+            Op::Negate => simple_op!(Negate),
+            Op::Add => simple_op!(Add),
+            Op::Subtract => simple_op!(Subtract),
+            Op::Multiply => simple_op!(Multiply),
+            Op::Divide => simple_op!(Divide),
+            Op::True => simple_op!(True),
+            Op::False => simple_op!(False),
+            Op::Nil => simple_op!(Nil),
         }
     }
     fn write_code(&mut self, code: u8, line: usize) {

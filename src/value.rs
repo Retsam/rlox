@@ -1,20 +1,18 @@
 use std::fmt::Display;
 
 #[derive(Clone, Copy)]
-pub struct Value {
-    val: f64,
+pub enum Value {
+    Number(f64),
+    Bool(bool),
+    Nil,
 }
 
-impl Value {
-    pub fn of_float(val: f64) -> Value {
-        Value { val }
-    }
-    pub fn as_float(&self) -> Option<f64> {
-        Some(self.val)
-    }
-}
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Display::fmt(&self.val, f)
+        match &self {
+            Value::Nil => write!(f, "nil"),
+            Value::Bool(b) => write!(f, "{b}"),
+            Value::Number(x) => write!(f, "{x}"),
+        }
     }
 }

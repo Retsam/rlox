@@ -59,13 +59,17 @@ impl VM {
     }
 
     fn read_byte(&mut self, chunk: &Chunk) -> u8 {
-        // Might be worth the danger of get_unchecked here
-        let val = chunk.code.get(self.ip);
+        let val = chunk.code[self.ip];
         self.ip += 1;
-        *val.unwrap()
+        val
     }
     fn read_constant<'a>(&mut self, chunk: &'a Chunk) -> &'a Value {
         chunk.get_constant_unwrap(self.read_byte(chunk))
+    }
+    fn runtime_err(&self, msg: &str, chunk: &Chunk) -> InterpretResult {
+        let line = chunk.lines[self.ip];
+        println!("{msg}\n[line {line}] in script");
+        Err(InterpretError::RuntimeError)
     }
     pub fn run(&mut self, chunk: &Chunk) -> InterpretResult {
         macro_rules! push {
@@ -78,26 +82,24 @@ impl VM {
                 self.values.pop()
             };
         }
+        macro_rules! runtime_err {
+            ($msg: expr) => {
+                return self.runtime_err($msg, chunk);
+            };
+        }
         loop {
             if cfg!(feature = "DEBUG_TRACE_EXECUTION") {
                 self.values.debug();
                 chunk.disassemble_instruction(self.ip);
             }
-            macro_rules! runtime_err {
-                ($str: literal) => {
-                    println!($str);
-                    return Err(InterpretError::RuntimeError)
-                };
-            }
             // Using a macro, allows returning from outer function
             macro_rules! binary_op {
                 ($oper:tt) => {
-                    if let (Some(b_val), Some(a_val)) = (pop!().as_float(), pop!().as_float()) {
-                        push!(Value::of_float(a_val $oper b_val))
+                    // The book's version does `peek` instead of pop - but that complicates things here and I'm not sure why it'd be necessary
+                    if let (Value::Number(b_val), Value::Number(a_val)) = (pop!(), pop!()) {
+                        push!(Value::Number(a_val $oper b_val))
                     } else {
-                        runtime_err!(
-                            "Attempted to apply $oper to non-number operands"
-                        );
+                        runtime_err!("Operands must be numbers.");
                     }
                 };
             }
@@ -110,9 +112,12 @@ impl VM {
                     let val = self.read_constant(chunk);
                     push!(*val);
                 }
-                Ok(Opcode::Negate) => match pop!().as_float() {
-                    Some(v) => push!(Value::of_float(-v)),
-                    None => {
+                Ok(Opcode::True) => push!(Value::Bool(true)),
+                Ok(Opcode::False) => push!(Value::Bool(false)),
+                Ok(Opcode::Nil) => push!(Value::Nil),
+                Ok(Opcode::Negate) => match pop!() {
+                    Value::Number(v) => push!(Value::Number(-v)),
+                    _ => {
                         runtime_err!("Attempted to negate non-number");
                     }
                 },
