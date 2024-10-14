@@ -94,10 +94,10 @@ impl VM {
             }
             // Using a macro, allows returning from outer function
             macro_rules! binary_op {
-                ($oper:tt) => {
+                ($oper:tt, $out_kind:ident) => {
                     // The book's version does `peek` instead of pop - but that complicates things here and I'm not sure why it'd be necessary
                     if let (Value::Number(b_val), Value::Number(a_val)) = (pop!(), pop!()) {
-                        push!(Value::Number(a_val $oper b_val))
+                        push!(Value::$out_kind(a_val $oper b_val))
                     } else {
                         runtime_err!("Operands must be numbers.");
                     }
@@ -125,10 +125,16 @@ impl VM {
                     Value::Nil | Value::Bool(false) => push!(Value::Bool(true)),
                     _ => push!(Value::Bool(false)),
                 },
-                Ok(Opcode::Add) => binary_op!(+),
-                Ok(Opcode::Subtract) => binary_op!(-),
-                Ok(Opcode::Multiply) => binary_op!(*),
-                Ok(Opcode::Divide) => binary_op!(/),
+                Ok(Opcode::Equal) => {
+                    let (v2, v1) = (pop!(), pop!());
+                    push!(Value::Bool(v1 == v2));
+                }
+                Ok(Opcode::Greater) => binary_op!(>, Bool),
+                Ok(Opcode::Less) => binary_op!(<, Bool),
+                Ok(Opcode::Add) => binary_op!(+, Number),
+                Ok(Opcode::Subtract) => binary_op!(-, Number),
+                Ok(Opcode::Multiply) => binary_op!(*, Number),
+                Ok(Opcode::Divide) => binary_op!(/, Number),
                 Err(code) => {
                     println!("Invalid opcode {code}");
                     return Err(InterpretError::CompileError);

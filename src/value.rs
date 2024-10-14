@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum Value {
     Number(f64),
     Bool(bool),
@@ -16,3 +16,5 @@ impl Display for Value {
         }
     }
 }
+
+impl Eq for Value {}

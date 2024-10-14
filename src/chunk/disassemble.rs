@@ -43,6 +43,9 @@ impl Chunk {
                 }
                 Opcode::Negate => print!("OP_NEGATE"),
                 Opcode::Not => print!("OP_NOT"),
+                Opcode::Equal => print!("OP_EQUAL"),
+                Opcode::Greater => print!("OP_GREATER"),
+                Opcode::Less => print!("OP_LESS"),
                 Opcode::Add => print!("OP_ADD"),
                 Opcode::Subtract => print!("OP_SUBTRACT"),
                 Opcode::Multiply => print!("OP_MULTIPLY"),

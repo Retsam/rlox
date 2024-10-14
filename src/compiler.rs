@@ -204,8 +204,18 @@ impl Parser {
             TokenKind::Minus => Op::Subtract,
             TokenKind::Star => Op::Multiply,
             TokenKind::Slash => Op::Divide,
+            // !=, <=, >= are done with two ops, this one, followed by a not
+            TokenKind::Less | TokenKind::GreaterEqual => Op::Less,
+            TokenKind::Greater | TokenKind::LessEqual => Op::Greater,
+            TokenKind::EqualEqual | TokenKind::BangEqual => Op::Equal,
             _ => panic!("Unexpected token as binary operator"),
         });
+        if matches!(
+            operator,
+            TokenKind::GreaterEqual | TokenKind::LessEqual | TokenKind::BangEqual,
+        ) {
+            self.emit_ins(Op::Not);
+        }
     }
     fn literal(&mut self) {
         self.emit_ins(match self.assert_prev().kind {
@@ -273,11 +283,14 @@ macro_rules! parse_rule {
     (None, None, None) => {
         ParseRule::new(None, None, None)
     };
-    (None, $inf:ident, $precedence:ident) => {
-        ParseRule::new(None, Some(Parser::$inf), Some(ParsePrecedence::$precedence))
-    };
     ($pre:ident, None, None) => {
         ParseRule::new(Some(Parser::$pre), None, None)
+    };
+    (None, $inf:ident, None) => {
+        ParseRule::new(None, Some(Parser::$inf), None)
+    };
+    (None, $inf:ident, $precedence:ident) => {
+        ParseRule::new(None, Some(Parser::$inf), Some(ParsePrecedence::$precedence))
     };
     ($pre:ident, $inf:ident, $precedence:ident) => {
         ParseRule::new(
@@ -305,6 +318,15 @@ impl Parser {
             }
             TokenKind::Bang => {
                 parse_rule!(unary, None, None)
+            }
+            TokenKind::BangEqual | TokenKind::EqualEqual => {
+                parse_rule!(None, binary, Equality)
+            }
+            TokenKind::Less
+            | TokenKind::Greater
+            | TokenKind::LessEqual
+            | TokenKind::GreaterEqual => {
+                parse_rule!(None, binary, Comparison)
             }
             TokenKind::True | TokenKind::False | TokenKind::Nil => {
                 parse_rule!(literal, None, None)

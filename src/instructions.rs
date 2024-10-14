@@ -13,6 +13,9 @@ pub enum Opcode {
     False,
     Not,
     Negate,
+    Equal,
+    Greater,
+    Less,
     Add,
     Subtract,
     Multiply,
@@ -40,6 +43,9 @@ impl From<Opcode> for u8 {
     }
 }
 
+// This enum exists for the sake of multi-byte instructions:
+//   Instead of `emitByte(OP_CONSTANT)` being followed by `emitByte(idx)` it's `emitOp(Op::Constant(idx))`
+//   This might turn out to be overkill
 pub enum Op {
     Return,
     Constant(/* the index of the constant */ u8),
@@ -48,6 +54,9 @@ pub enum Op {
     False,
     Not,
     Negate,
+    Equal,
+    Greater,
+    Less,
     Add,
     Subtract,
     Multiply,
