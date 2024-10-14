@@ -42,6 +42,7 @@ impl Chunk {
                     print!("{:16} {const_idx:4} '{val}'", "OP_CONSTANT")
                 }
                 Opcode::Negate => print!("OP_NEGATE"),
+                Opcode::Not => print!("OP_NOT"),
                 Opcode::Add => print!("OP_ADD"),
                 Opcode::Subtract => print!("OP_SUBTRACT"),
                 Opcode::Multiply => print!("OP_MULTIPLY"),

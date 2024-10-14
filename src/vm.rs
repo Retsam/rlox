@@ -121,6 +121,10 @@ impl VM {
                         runtime_err!("Attempted to negate non-number");
                     }
                 },
+                Ok(Opcode::Not) => match pop!() {
+                    Value::Nil | Value::Bool(false) => push!(Value::Bool(true)),
+                    _ => push!(Value::Bool(false)),
+                },
                 Ok(Opcode::Add) => binary_op!(+),
                 Ok(Opcode::Subtract) => binary_op!(-),
                 Ok(Opcode::Multiply) => binary_op!(*),

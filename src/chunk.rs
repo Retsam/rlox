@@ -36,6 +36,7 @@ impl Chunk {
             }
             Op::Return => simple_op!(Return),
             Op::Negate => simple_op!(Negate),
+            Op::Not => simple_op!(Not),
             Op::Add => simple_op!(Add),
             Op::Subtract => simple_op!(Subtract),
             Op::Multiply => simple_op!(Multiply),

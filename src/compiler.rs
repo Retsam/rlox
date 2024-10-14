@@ -178,6 +178,7 @@ impl Parser {
     fn unary(&mut self) {
         let op = match self.assert_prev().kind {
             TokenKind::Minus => Op::Negate,
+            TokenKind::Bang => Op::Not,
             _ => {
                 self.error("Expected unary operator.");
                 return;
@@ -301,6 +302,9 @@ impl Parser {
             }
             TokenKind::Slash | TokenKind::Star => {
                 parse_rule!(None, binary, Factor)
+            }
+            TokenKind::Bang => {
+                parse_rule!(unary, None, None)
             }
             TokenKind::True | TokenKind::False | TokenKind::Nil => {
                 parse_rule!(literal, None, None)
