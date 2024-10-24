@@ -22,7 +22,7 @@ struct ValueStack {
 impl ValueStack {
     pub fn new() -> ValueStack {
         ValueStack {
-            values: [None; STACK_MAX],
+            values: [const { None }; STACK_MAX],
             stack_top: 0,
         }
     }
@@ -32,12 +32,16 @@ impl ValueStack {
     }
     pub fn pop(&mut self) -> Value {
         self.stack_top -= 1;
-        self.values[self.stack_top].expect("stack should not be empty")
+        let val = self.values[self.stack_top].take();
+        val.expect("stack should not be empty")
     }
     pub fn debug(&self) {
         print!("[ ");
         for i in 0..self.stack_top {
-            print!("{} ", self.values[i].expect("stack should not be empty"))
+            print!(
+                "{} ",
+                self.values[i].as_ref().expect("stack should not be empty")
+            )
         }
         println!("]");
     }
