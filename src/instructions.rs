@@ -31,7 +31,7 @@ impl TryFrom<u8> for Opcode {
         // Using transmute here with bounds checking instead of the safer match value block
         //  this logic is used in the vm loop, so minimizing overhead is probably a good idea
         if value > 0 && value <= OPCODE_MAX {
-            unsafe { Ok(transmute(value)) }
+            unsafe { Ok(transmute::<u8, Opcode>(value)) }
         } else {
             Err(value)
         }
