@@ -88,7 +88,7 @@ impl VM {
         }
         macro_rules! runtime_err {
             ($msg: expr) => {
-                return self.runtime_err($msg, chunk);
+                return self.runtime_err($msg, chunk)
             };
         }
         loop {
@@ -114,7 +114,7 @@ impl VM {
                 }
                 Ok(Opcode::Constant) => {
                     let val = self.read_constant(chunk);
-                    push!(*val);
+                    push!(val.clone());
                 }
                 Ok(Opcode::True) => push!(Value::Bool(true)),
                 Ok(Opcode::False) => push!(Value::Bool(false)),
@@ -135,7 +135,13 @@ impl VM {
                 }
                 Ok(Opcode::Greater) => binary_op!(>, Bool),
                 Ok(Opcode::Less) => binary_op!(<, Bool),
-                Ok(Opcode::Add) => binary_op!(+, Number),
+                Ok(Opcode::Add) => match (pop!(), pop!()) {
+                    (Value::Number(v2), Value::Number(v1)) => push!(Value::Number(v2 + v1)),
+                    (Value::String(v2), Value::String(v1)) => {
+                        push!(Value::String(format!("{v1}{v2}").into()))
+                    }
+                    _ => runtime_err!("Operands must be two numbers or two strings."),
+                },
                 Ok(Opcode::Subtract) => binary_op!(-, Number),
                 Ok(Opcode::Multiply) => binary_op!(*, Number),
                 Ok(Opcode::Divide) => binary_op!(/, Number),

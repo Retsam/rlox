@@ -171,6 +171,11 @@ impl Parser {
             .expect("Tried to parse a number but failed");
         self.emit_constant(Value::Number(val));
     }
+    fn string(&mut self) {
+        let raw_str = &self.assert_prev().lexeme;
+        let val = &raw_str[1..raw_str.len() - 1]; // slice off quotes
+        self.emit_constant(Value::String(val.into()));
+    }
     fn grouping(&mut self) {
         self.expression();
         self.consume(TokenKind::RightParen, "Expected ')' after expression.");
@@ -333,6 +338,9 @@ impl Parser {
             }
             TokenKind::Number => {
                 parse_rule!(number, None, None)
+            }
+            TokenKind::String => {
+                parse_rule!(string, None, None)
             }
             _ => parse_rule!(None, None, None),
         }
