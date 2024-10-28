@@ -36,6 +36,8 @@ fn repl() -> io::Result<()> {
             break;
         }
         let _ = vm.interpret(buf);
+        // Clean up between lines, right now just cleans the string intern map a bit
+        vm.garbage_collect();
     }
     Ok(())
 }

@@ -34,7 +34,10 @@ impl PartialEq for Value {
     }
 }
 
-pub struct StringInterns(HashMap<String, Weak<str>>);
+pub struct StringInterns(
+    // Stores Weak refs to existing strings so they can be reused without otherwise being retained
+    HashMap<String, Weak<str>>,
+);
 
 impl StringInterns {
     pub fn new() -> StringInterns {
@@ -52,5 +55,10 @@ impl StringInterns {
     }
     pub fn build_string_value(&mut self, string: &str) -> Value {
         Value::String(self.get_or_intern(string))
+    }
+
+    /// Remove any weak refs that no longer point to a string
+    pub fn clean(&mut self) {
+        self.0.retain(|_, val| val.upgrade().is_some());
     }
 }

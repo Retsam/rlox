@@ -161,4 +161,7 @@ impl VM {
             }
         }
     }
+    pub fn garbage_collect(&mut self) {
+        self.strings.clean();
+    }
 }
