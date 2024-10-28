@@ -1,10 +1,10 @@
 use crate::chunk::Chunk;
 use crate::instructions::Op;
 use crate::scanner::{Scanner, Token, TokenKind};
-use crate::value::Value;
+use crate::value::{StringInterns, Value};
 
-pub fn compile(str: String) -> Option<Chunk> {
-    let mut parser = Parser::new(Scanner::new(str));
+pub fn compile(str: String, strings: &mut StringInterns) -> Option<Chunk> {
+    let mut parser = Parser::new(Scanner::new(str), strings);
 
     parser.expression();
 
@@ -22,13 +22,14 @@ pub fn compile(str: String) -> Option<Chunk> {
     Some(parser.chunk)
 }
 
-struct Parser {
+struct Parser<'a> {
     scanner: Scanner,
     chunk: Chunk,
     previous: Option<Token>,
     current: Token,
     had_error: bool,
     panic_mode: bool,
+    strings: &'a mut StringInterns,
 }
 
 fn stub_token() -> Token {
@@ -40,8 +41,8 @@ fn stub_token() -> Token {
 }
 
 // The basic parser operations - advance, consume, etc
-impl Parser {
-    fn new(scanner: Scanner) -> Parser {
+impl<'a> Parser<'a> {
+    fn new(scanner: Scanner, strings: &'a mut StringInterns) -> Parser<'a> {
         let mut p = Parser {
             scanner,
             chunk: Chunk::new(),
@@ -50,6 +51,7 @@ impl Parser {
             current: stub_token(),
             had_error: false,
             panic_mode: false,
+            strings,
         };
         p.advance();
         p
@@ -113,7 +115,7 @@ impl Parser {
     }
 }
 
-impl Parser {
+impl<'a> Parser<'a> {
     fn emit_ins(&mut self, ins: Op) {
         self.chunk.write(ins, self.assert_prev().line);
     }
@@ -132,7 +134,7 @@ impl Parser {
     }
 }
 // The specific, language structure related stuff
-impl Parser {
+impl<'a> Parser<'a> {
     // Parses everything at the given precedence level (or higher)
     fn parse_precedence(&mut self, precedence: ParsePrecedence) {
         self.advance();
@@ -172,9 +174,11 @@ impl Parser {
         self.emit_constant(Value::Number(val));
     }
     fn string(&mut self) {
-        let raw_str = &self.assert_prev().lexeme;
-        let val = &raw_str[1..raw_str.len() - 1]; // slice off quotes
-        self.emit_constant(Value::String(val.into()));
+        let raw_str = &self.previous.as_ref().expect("foo").lexeme;
+        let val = self
+            .strings
+            .build_string_value(&raw_str[1..raw_str.len() - 1]); // slice off quotes
+        self.emit_constant(val);
     }
     fn grouping(&mut self) {
         self.expression();
@@ -264,18 +268,18 @@ impl ParsePrecedence {
     }
 }
 
-type ParseFn = fn(&mut Parser);
-struct ParseRule {
-    prefix: Option<ParseFn>,
-    infix: Option<ParseFn>,
+type ParseFn<'a> = fn(&mut Parser<'a>);
+struct ParseRule<'a> {
+    prefix: Option<ParseFn<'a>>,
+    infix: Option<ParseFn<'a>>,
     precedence: Option<ParsePrecedence>,
 }
-impl ParseRule {
+impl<'a> ParseRule<'a> {
     fn new(
-        prefix: Option<ParseFn>,
-        infix: Option<ParseFn>,
+        prefix: Option<ParseFn<'a>>,
+        infix: Option<ParseFn<'a>>,
         precedence: Option<ParsePrecedence>,
-    ) -> ParseRule {
+    ) -> ParseRule<'a> {
         ParseRule {
             prefix,
             infix,
@@ -306,8 +310,8 @@ macro_rules! parse_rule {
     };
 }
 
-impl Parser {
-    fn get_rule(kind: TokenKind) -> ParseRule {
+impl<'a> Parser<'a> {
+    fn get_rule(kind: TokenKind) -> ParseRule<'a> {
         match kind {
             TokenKind::LeftParen => {
                 parse_rule!(grouping, None, None)

@@ -1,4 +1,9 @@
-use crate::{chunk::Chunk, compiler, instructions::Opcode, value::Value};
+use crate::{
+    chunk::Chunk,
+    compiler,
+    instructions::Opcode,
+    value::{StringInterns, Value},
+};
 
 const STACK_MAX: usize = 256;
 
@@ -6,6 +11,7 @@ pub struct VM {
     // The book uses raw pointers, this is an index because I think I'd have to jump into unsafe to make that work
     ip: usize,
     values: ValueStack,
+    strings: StringInterns,
 }
 
 pub enum InterpretError {
@@ -52,10 +58,13 @@ impl VM {
         VM {
             ip: 0,
             values: ValueStack::new(),
+            // Shared between the VM (for strings defined at runtime)
+            // and the compiler, for constants
+            strings: StringInterns::new(),
         }
     }
     pub fn interpret(&mut self, source: String) -> InterpretResult {
-        let Some(chunk) = compiler::compile(source) else {
+        let Some(chunk) = compiler::compile(source, &mut self.strings) else {
             return Err(InterpretError::CompileError);
         };
         self.ip = 0;
@@ -138,7 +147,7 @@ impl VM {
                 Ok(Opcode::Add) => match (pop!(), pop!()) {
                     (Value::Number(v2), Value::Number(v1)) => push!(Value::Number(v2 + v1)),
                     (Value::String(v2), Value::String(v1)) => {
-                        push!(Value::String(format!("{v1}{v2}").into()))
+                        push!(self.strings.build_string_value(&format!("{v1}{v2}")))
                     }
                     _ => runtime_err!("Operands must be two numbers or two strings."),
                 },
