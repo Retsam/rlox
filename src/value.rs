@@ -1,13 +1,13 @@
 mod string_intern;
 
 use std::{fmt::Display, rc::Rc};
-pub use string_intern::StringInterns;
+pub use string_intern::{InternString, StringInterns};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Value {
     Number(f64),
     Bool(bool),
-    String(Rc<str>),
+    String(Rc<InternString>),
     Nil,
 }
 
@@ -18,17 +18,6 @@ impl Display for Value {
             Value::Bool(b) => write!(f, "{b}"),
             Value::Number(x) => write!(f, "{x}"),
             Value::String(x) => write!(f, "{x}"),
-        }
-    }
-}
-
-impl PartialEq for Value {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Number(l0), Self::Number(r0)) => l0 == r0,
-            (Self::Bool(l0), Self::Bool(r0)) => l0 == r0,
-            (Self::String(l0), Self::String(r0)) => Rc::ptr_eq(l0, r0),
-            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
     }
 }
