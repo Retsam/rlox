@@ -7,6 +7,8 @@ use std::mem::transmute;
 #[repr(u8)]
 pub enum Opcode {
     Return = 1,
+    Print,
+    Pop,
     Constant,
     Nil,
     True,
@@ -48,6 +50,8 @@ impl From<Opcode> for u8 {
 //   This might turn out to be overkill
 pub enum Op {
     Return,
+    Print,
+    Pop,
     Constant(/* the index of the constant */ u8),
     Nil,
     True,

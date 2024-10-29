@@ -6,17 +6,17 @@ use crate::value::{StringInterns, Value};
 pub fn compile(str: String, strings: &mut StringInterns) -> Option<Chunk> {
     let mut parser = Parser::new(Scanner::new(str), strings);
 
-    parser.expression();
-
-    parser.consume(TokenKind::Eof, "Expected end of expression.");
-
-    if parser.had_error {
-        return None;
+    while !parser.match_t(TokenKind::Eof) {
+        parser.declaration();
     }
 
     // end_compiler functionality
     parser.emit_ins(Op::Return);
-    if cfg!(feature = "DEBUG_PRINT_CODE") && !parser.had_error {
+
+    if parser.had_error {
+        return None;
+    }
+    if cfg!(feature = "DEBUG_PRINT_CODE") {
         parser.chunk.disassemble("code");
     }
     Some(parser.chunk)
@@ -79,6 +79,16 @@ impl<'a> Parser<'a> {
         }
         self.error_at_current(err);
     }
+    fn check(&self, expected: TokenKind) -> bool {
+        self.current.kind == expected
+    }
+    fn match_t(&mut self, expected: TokenKind) -> bool {
+        if self.check(expected) {
+            self.advance();
+            return true;
+        }
+        false
+    }
 
     // Top-level error methods
     fn error_at_current(&mut self, err: &str) {
@@ -112,6 +122,31 @@ impl<'a> Parser<'a> {
 
         self.had_error = true;
         self.panic_mode = true;
+    }
+
+    fn synchronize(&mut self) {
+        self.panic_mode = false;
+        while !self.match_t(TokenKind::Eof) {
+            // Synchronize when we're at a statement boundary:
+
+            // just passed a semicolon
+            if self.assert_prev().kind == TokenKind::Semicolon {
+                return;
+            }
+            // or start of an expression
+            match self.current.kind {
+                TokenKind::Class
+                | TokenKind::Fun
+                | TokenKind::Var
+                | TokenKind::For
+                | TokenKind::If
+                | TokenKind::While
+                | TokenKind::Print
+                | TokenKind::Return => return,
+                _ => { /* keep going */ }
+            }
+            self.advance();
+        }
     }
 }
 
@@ -161,6 +196,30 @@ impl<'a> Parser<'a> {
 
     fn expression(&mut self) {
         self.parse_precedence(ParsePrecedence::Assignment);
+    }
+
+    fn declaration(&mut self) {
+        self.statement();
+        if self.panic_mode {
+            self.synchronize()
+        }
+    }
+    fn statement(&mut self) {
+        if self.match_t(TokenKind::Print) {
+            return self.print_statement();
+        }
+        self.expression_statement();
+    }
+    fn print_statement(&mut self) {
+        self.expression();
+        self.consume(TokenKind::Semicolon, "Expect ';' after value.");
+        self.emit_ins(Op::Print);
+    }
+
+    fn expression_statement(&mut self) {
+        self.expression();
+        self.consume(TokenKind::Semicolon, "Expect ';' after expression.");
+        self.emit_ins(Op::Pop);
     }
 
     fn number(&mut self) {

@@ -35,6 +35,8 @@ impl Chunk {
                 self.write_code(val, line)
             }
             Op::Return => simple_op!(Return),
+            Op::Print => simple_op!(Print),
+            Op::Pop => simple_op!(Pop),
             Op::Negate => simple_op!(Negate),
             Op::Not => simple_op!(Not),
             Op::Equal => simple_op!(Equal),

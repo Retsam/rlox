@@ -118,13 +118,16 @@ impl VM {
             }
             match self.read_byte(chunk).try_into() {
                 Ok(Opcode::Return) => {
-                    println!("{}", pop!());
                     return Ok(());
                 }
                 Ok(Opcode::Constant) => {
                     let val = self.read_constant(chunk);
                     push!(val.clone());
                 }
+                Ok(Opcode::Pop) => {
+                    pop!();
+                }
+                Ok(Opcode::Print) => println!("{}", pop!()),
                 Ok(Opcode::True) => push!(Value::Bool(true)),
                 Ok(Opcode::False) => push!(Value::Bool(false)),
                 Ok(Opcode::Nil) => push!(Value::Nil),
