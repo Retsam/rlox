@@ -7,6 +7,7 @@ use std::{
 
 /// InternString is a str newtype that does reference equality
 #[repr(transparent)]
+#[derive(Debug)]
 pub struct InternString(str);
 impl InternString {
     pub fn new(s: &str) -> &Self {
@@ -71,5 +72,37 @@ impl StringInterns {
     /// Remove any weak refs that no longer point to a string
     pub fn clean(&mut self) {
         self.0.retain(|_, val| val.upgrade().is_some());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn equal_strings_intern() {
+        let mut interns = StringInterns::new();
+        let s1 = interns.get_or_intern("foo");
+        let s2 = interns.get_or_intern("foo");
+        let s3 = interns.get_or_intern("bar");
+
+        assert!(
+            Rc::ptr_eq(&s1, &s2),
+            "s1 and s2 are not pointing to the same data"
+        );
+        assert!(
+            !Rc::ptr_eq(&s1, &s3),
+            "s1 and s3 are pointing to the same data"
+        );
+    }
+
+    #[test]
+    fn produces_eq_vals() {
+        let mut interns = StringInterns::new();
+        let v1 = interns.build_string_value("foo");
+        let v2 = interns.build_string_value("foo");
+        let v3 = interns.build_string_value("bar");
+        assert_eq!(v1, v2);
+        assert_ne!(v1, v3);
     }
 }

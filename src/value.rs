@@ -3,7 +3,7 @@ mod string_intern;
 use std::{fmt::Display, rc::Rc};
 pub use string_intern::{InternString, StringInterns};
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Value {
     Number(f64),
     Bool(bool),
