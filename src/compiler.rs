@@ -167,6 +167,11 @@ impl<'a> Parser<'a> {
             None => { /* original code emits OP_CONSTANT 0 on error */ }
         }
     }
+    fn identifier_constant(&mut self) -> Option<u8> {
+        let var_name = &self.previous.as_ref().unwrap().lexeme;
+        let val = self.strings.build_string_value(var_name);
+        self.make_constant(val)
+    }
 }
 // The specific, language structure related stuff
 impl<'a> Parser<'a> {
@@ -199,10 +204,36 @@ impl<'a> Parser<'a> {
     }
 
     fn declaration(&mut self) {
-        self.statement();
+        if self.match_t(TokenKind::Var) {
+            self.variable_declaration();
+        } else {
+            self.statement();
+        }
         if self.panic_mode {
             self.synchronize()
         }
+    }
+    fn variable_declaration(&mut self) {
+        let variable_constant = self.parse_variable("Expect variable name.");
+        if self.match_t(TokenKind::Equal) {
+            self.expression();
+        } else {
+            self.emit_ins(Op::Nil);
+        }
+        self.consume(TokenKind::Semicolon, "Expect ';' after assignment.");
+        if let Some(idx) = variable_constant {
+            self.define_variable(idx)
+        } else {
+            // only hit this case if we have too many constants - just emit a pop to ignore the value that would be defined
+            self.emit_ins(Op::Pop);
+        }
+    }
+    fn parse_variable(&mut self, err: &str) -> Option<u8> {
+        self.consume(TokenKind::Identifier, err);
+        self.identifier_constant()
+    }
+    fn define_variable(&mut self, const_idx: u8) {
+        self.emit_ins(Op::DefineGlobal(const_idx));
     }
     fn statement(&mut self) {
         if self.match_t(TokenKind::Print) {

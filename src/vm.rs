@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     chunk::Chunk,
     compiler,
@@ -12,6 +14,8 @@ pub struct VM {
     ip: usize,
     values: ValueStack,
     strings: StringInterns,
+    // TODO - see if we can leverage interning
+    globals: HashMap<String, Value>,
 }
 
 pub enum InterpretError {
@@ -61,6 +65,7 @@ impl VM {
             // Shared between the VM (for strings defined at runtime)
             // and the compiler, for constants
             strings: StringInterns::new(),
+            globals: HashMap::new(),
         }
     }
     pub fn interpret(&mut self, source: String) -> InterpretResult {
@@ -123,6 +128,15 @@ impl VM {
                 Ok(Opcode::Constant) => {
                     let val = self.read_constant(chunk);
                     push!(val.clone());
+                }
+                Ok(Opcode::DefineGlobal) => {
+                    if let Value::String(var_name) = self.read_constant(chunk) {
+                        // book does peek() here, too
+                        let val = pop!();
+                        self.globals.insert(var_name.to_string(), val);
+                    } else {
+                        panic!("Emitted non-string constant")
+                    }
                 }
                 Ok(Opcode::Pop) => {
                     pop!();

@@ -41,6 +41,11 @@ impl Chunk {
                     let val = self.get_constant_unwrap(const_idx);
                     print!("{:16} {const_idx:4} '{val}'", "OP_CONSTANT")
                 }
+                Opcode::DefineGlobal => {
+                    let const_idx = read_byte(&mut offset);
+                    let val = self.get_constant_unwrap(const_idx);
+                    print!("{:16} {const_idx:4} '{val}'", "OP_DEFINE_GLOBAL")
+                }
                 Opcode::Print => print!("OP_PRINT"),
                 Opcode::Pop => print!("OP_POP"),
                 Opcode::Negate => print!("OP_NEGATE"),

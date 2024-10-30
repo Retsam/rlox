@@ -34,6 +34,10 @@ impl Chunk {
                 self.write_code(Opcode::Constant.into(), line);
                 self.write_code(val, line)
             }
+            Op::DefineGlobal(val) => {
+                self.write_code(Opcode::DefineGlobal.into(), line);
+                self.write_code(val, line);
+            }
             Op::Return => simple_op!(Return),
             Op::Print => simple_op!(Print),
             Op::Pop => simple_op!(Pop),

@@ -19,6 +19,7 @@ impl PartialEq for InternString {
         std::ptr::eq(self, other)
     }
 }
+impl Eq for InternString {}
 
 impl Deref for InternString {
     type Target = str;
