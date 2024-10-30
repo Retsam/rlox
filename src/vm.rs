@@ -45,6 +45,10 @@ impl ValueStack {
         let val = self.values[self.stack_top].take();
         val.expect("stack should not be empty")
     }
+    pub fn peek(&mut self) -> &Value {
+        let val = self.values[self.stack_top].as_ref();
+        val.expect("stack should not be empty")
+    }
     pub fn debug(&self) {
         print!("[ ");
         for i in 0..self.stack_top {
@@ -150,6 +154,19 @@ impl VM {
                         None => {
                             runtime_err!(&format!("Undefined variable '{var_name}'."))
                         }
+                    }
+                }
+                Ok(Opcode::SetGlobal) => {
+                    let var_name = self.read_string_constant(chunk);
+                    let val = self.values.peek();
+
+                    if self
+                        .globals
+                        .insert(var_name.to_string(), val.clone())
+                        .is_none()
+                    {
+                        self.globals.remove(&var_name.to_string());
+                        runtime_err!(&format!("Undefined variable '{var_name}'."))
                     }
                 }
                 Ok(Opcode::Pop) => {

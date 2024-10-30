@@ -46,6 +46,7 @@ impl Chunk {
                 Opcode::Constant => op_with_const_idx!("OP_CONSTANT"),
                 Opcode::DefineGlobal => op_with_const_idx!("OP_DEFINE_GLOBAL"),
                 Opcode::GetGlobal => op_with_const_idx!("OP_GET_GLOBAL"),
+                Opcode::SetGlobal => op_with_const_idx!("OP_SET_GLOBAL"),
                 Opcode::Print => print!("OP_PRINT"),
                 Opcode::Pop => print!("OP_POP"),
                 Opcode::Negate => print!("OP_NEGATE"),

@@ -183,7 +183,8 @@ impl<'a> Parser<'a> {
             self.error("Expect expression");
             return;
         };
-        prefix(self);
+        let can_assign = precedence <= ParsePrecedence::Assignment;
+        prefix(self, can_assign);
 
         while precedence
             < Parser::get_rule(self.current.kind)
@@ -195,7 +196,11 @@ impl<'a> Parser<'a> {
                 .infix
                 .expect("Expect infix rule");
 
-            infix(self);
+            infix(self, can_assign);
+        }
+
+        if can_assign && self.match_t(TokenKind::Equal) {
+            self.error("Invalid assignment target.");
         }
     }
 
@@ -253,7 +258,7 @@ impl<'a> Parser<'a> {
         self.emit_ins(Op::Pop);
     }
 
-    fn number(&mut self) {
+    fn number(&mut self, _: bool) {
         // kind of awkward that we just read previous and hope it's a Number token, but I don't want to go crazy
         // on architecture changes here
         let val = self
@@ -263,28 +268,32 @@ impl<'a> Parser<'a> {
             .expect("Tried to parse a number but failed");
         self.emit_constant(Value::Number(val));
     }
-    fn string(&mut self) {
+    fn string(&mut self, _: bool) {
         let raw_str = &self.previous.as_ref().unwrap().lexeme;
         let val = self
             .strings
             .build_string_value(&raw_str[1..raw_str.len() - 1]); // slice off quotes
         self.emit_constant(val);
     }
-    fn variable(&mut self) {
-        self.named_variable();
+    fn variable(&mut self, can_assign: bool) {
+        self.named_variable(can_assign);
     }
-    fn named_variable(&mut self) {
+    fn named_variable(&mut self, can_assign: bool) {
         if let Some(var_name_idx) = self.identifier_constant() {
-            self.emit_ins(Op::GetGlobal(var_name_idx));
+            if can_assign && self.match_t(TokenKind::Equal) {
+                self.emit_ins(Op::SetGlobal(var_name_idx));
+            } else {
+                self.emit_ins(Op::GetGlobal(var_name_idx));
+            }
         } else {
             self.emit_ins(Op::Nil);
         }
     }
-    fn grouping(&mut self) {
+    fn grouping(&mut self, _: bool) {
         self.expression();
         self.consume(TokenKind::RightParen, "Expected ')' after expression.");
     }
-    fn unary(&mut self) {
+    fn unary(&mut self, _: bool) {
         let op = match self.assert_prev().kind {
             TokenKind::Minus => Op::Negate,
             TokenKind::Bang => Op::Not,
@@ -297,7 +306,7 @@ impl<'a> Parser<'a> {
         self.emit_ins(op);
     }
 
-    fn binary(&mut self) {
+    fn binary(&mut self, _: bool) {
         // lhs side has already been parsed
 
         let operator = self.assert_prev().kind;
@@ -326,7 +335,7 @@ impl<'a> Parser<'a> {
             self.emit_ins(Op::Not);
         }
     }
-    fn literal(&mut self) {
+    fn literal(&mut self, _: bool) {
         self.emit_ins(match self.assert_prev().kind {
             TokenKind::True => Op::True,
             TokenKind::False => Op::False,
@@ -368,7 +377,7 @@ impl ParsePrecedence {
     }
 }
 
-type ParseFn<'a> = fn(&mut Parser<'a>);
+type ParseFn<'a> = fn(&mut Parser<'a>, can_assign: bool);
 struct ParseRule<'a> {
     prefix: Option<ParseFn<'a>>,
     infix: Option<ParseFn<'a>>,
