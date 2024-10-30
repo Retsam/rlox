@@ -264,11 +264,21 @@ impl<'a> Parser<'a> {
         self.emit_constant(Value::Number(val));
     }
     fn string(&mut self) {
-        let raw_str = &self.previous.as_ref().expect("foo").lexeme;
+        let raw_str = &self.previous.as_ref().unwrap().lexeme;
         let val = self
             .strings
             .build_string_value(&raw_str[1..raw_str.len() - 1]); // slice off quotes
         self.emit_constant(val);
+    }
+    fn variable(&mut self) {
+        self.named_variable();
+    }
+    fn named_variable(&mut self) {
+        if let Some(var_name_idx) = self.identifier_constant() {
+            self.emit_ins(Op::GetGlobal(var_name_idx));
+        } else {
+            self.emit_ins(Op::Nil);
+        }
     }
     fn grouping(&mut self) {
         self.expression();
@@ -435,6 +445,9 @@ impl<'a> Parser<'a> {
             }
             TokenKind::String => {
                 parse_rule!(string, None, None)
+            }
+            TokenKind::Identifier => {
+                parse_rule!(variable, None, None)
             }
             _ => parse_rule!(None, None, None),
         }

@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 
 use crate::{
     chunk::Chunk,
     compiler,
     instructions::Opcode,
-    value::{StringInterns, Value},
+    value::{InternString, StringInterns, Value},
 };
 
 const STACK_MAX: usize = 256;
@@ -84,6 +84,14 @@ impl VM {
     fn read_constant<'a>(&mut self, chunk: &'a Chunk) -> &'a Value {
         chunk.get_constant_unwrap(self.read_byte(chunk))
     }
+    // This is used in places where only a string could be - e.g. variable names
+    fn read_string_constant<'a>(&mut self, chunk: &'a Chunk) -> &'a Rc<InternString> {
+        if let Value::String(val) = self.read_constant(chunk) {
+            val
+        } else {
+            panic!("Got non-string constant")
+        }
+    }
     fn runtime_err(&self, msg: &str, chunk: &Chunk) -> InterpretResult {
         let line = chunk.lines[self.ip];
         println!("{msg}\n[line {line}] in script");
@@ -130,12 +138,18 @@ impl VM {
                     push!(val.clone());
                 }
                 Ok(Opcode::DefineGlobal) => {
-                    if let Value::String(var_name) = self.read_constant(chunk) {
-                        // book does peek() here, too
-                        let val = pop!();
-                        self.globals.insert(var_name.to_string(), val);
-                    } else {
-                        panic!("Emitted non-string constant")
+                    let var_name = self.read_string_constant(chunk);
+                    // book does peek() here, too
+                    let val = pop!();
+                    self.globals.insert(var_name.to_string(), val);
+                }
+                Ok(Opcode::GetGlobal) => {
+                    let var_name = self.read_string_constant(chunk);
+                    match self.globals.get(&var_name.to_string()) {
+                        Some(val) => push!(val.clone()),
+                        None => {
+                            runtime_err!(&format!("Undefined variable '{var_name}'."))
+                        }
                     }
                 }
                 Ok(Opcode::Pop) => {

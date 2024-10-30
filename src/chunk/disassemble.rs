@@ -32,20 +32,20 @@ impl Chunk {
         } else {
             print!("   | ")
         }
+        macro_rules! op_with_const_idx {
+            ($op_code: literal) => {{
+                let const_idx = read_byte(&mut offset);
+                let val = self.get_constant_unwrap(const_idx);
+                print!("{:16} {const_idx:4} '{val}'", $op_code);
+            }};
+        }
         match read_byte(&mut offset).try_into() {
             // double match saves `Ok()` wrapping on all the cases
             Ok(op) => match op {
                 Opcode::Return => print!("OP_RETURN"),
-                Opcode::Constant => {
-                    let const_idx = read_byte(&mut offset);
-                    let val = self.get_constant_unwrap(const_idx);
-                    print!("{:16} {const_idx:4} '{val}'", "OP_CONSTANT")
-                }
-                Opcode::DefineGlobal => {
-                    let const_idx = read_byte(&mut offset);
-                    let val = self.get_constant_unwrap(const_idx);
-                    print!("{:16} {const_idx:4} '{val}'", "OP_DEFINE_GLOBAL")
-                }
+                Opcode::Constant => op_with_const_idx!("OP_CONSTANT"),
+                Opcode::DefineGlobal => op_with_const_idx!("OP_DEFINE_GLOBAL"),
+                Opcode::GetGlobal => op_with_const_idx!("OP_GET_GLOBAL"),
                 Opcode::Print => print!("OP_PRINT"),
                 Opcode::Pop => print!("OP_POP"),
                 Opcode::Negate => print!("OP_NEGATE"),

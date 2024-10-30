@@ -29,15 +29,16 @@ impl Chunk {
                 self.write_code(Opcode::$kind.into(), line)
             };
         }
+        macro_rules! double_op {
+            ($kind: ident, $val: ident) => {{
+                simple_op!($kind);
+                self.write_code($val, line)
+            }};
+        }
         match ins {
-            Op::Constant(val) => {
-                self.write_code(Opcode::Constant.into(), line);
-                self.write_code(val, line)
-            }
-            Op::DefineGlobal(val) => {
-                self.write_code(Opcode::DefineGlobal.into(), line);
-                self.write_code(val, line);
-            }
+            Op::Constant(val) => double_op!(Constant, val),
+            Op::DefineGlobal(val) => double_op!(DefineGlobal, val),
+            Op::GetGlobal(val) => double_op!(GetGlobal, val),
             Op::Return => simple_op!(Return),
             Op::Print => simple_op!(Print),
             Op::Pop => simple_op!(Pop),
