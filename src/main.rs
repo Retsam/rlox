@@ -1,17 +1,10 @@
-mod chunk;
-mod compiler;
-mod instructions;
-mod scanner;
-mod value;
-mod vm;
-
 use std::{
     fs,
     io::{self, stdin, stdout, Write},
     process::exit,
 };
 
-use vm::{InterpretError, VM};
+use rlox::vm::{InterpretError, VM};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
