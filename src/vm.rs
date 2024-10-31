@@ -61,6 +61,11 @@ impl ValueStack {
     }
 }
 
+impl Default for VM {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl VM {
     pub fn new() -> VM {
         VM {
