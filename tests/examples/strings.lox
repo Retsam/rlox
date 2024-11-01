@@ -1,0 +1,3 @@
+print "a" == "a";
+print "ab" == "a" + "b";
+print "ac" == "a" + "b";

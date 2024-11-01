@@ -30,7 +30,7 @@ fn run_test(case: TestCase) {
         result,
     } = case;
 
-    let output = run_rlox(format!("./tests/examples/{file}")).unwrap();
+    let output = run_rlox(format!("./tests/examples/{file}.lox")).unwrap();
     assert_eq!(str::from_utf8(&output.stdout).unwrap(), stdout);
 
     match result {
@@ -51,7 +51,7 @@ fn run_test(case: TestCase) {
 #[test]
 fn expressions() {
     run_test(TestCase {
-        file: "expressions.lox",
+        file: "expressions",
         stdout: "5\n",
         result: Success(),
     });
@@ -60,7 +60,7 @@ fn expressions() {
 #[test]
 fn plus_operator() {
     run_test(TestCase {
-        file: "plus_operator.lox",
+        file: "plus_operator",
         stdout: "3\nab\n",
         result: Failure(
             RuntimeError,
@@ -70,9 +70,18 @@ fn plus_operator() {
 }
 
 #[test]
+fn strings() {
+    run_test(TestCase {
+        file: "strings",
+        stdout: "true\ntrue\nfalse\n",
+        result: Success(),
+    });
+}
+
+#[test]
 fn assignment() {
     run_test(TestCase {
-        file: "assignment.lox",
+        file: "assignment",
         stdout: "1\n",
         result: Success(),
     });
@@ -81,7 +90,7 @@ fn assignment() {
 #[test]
 fn assign_error_test() {
     run_test(TestCase {
-        file: "assign_error.lox",
+        file: "assign_error",
         stdout: "",
         result: Failure(
             FailureType::CompileError,
