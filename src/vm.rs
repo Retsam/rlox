@@ -108,7 +108,7 @@ impl VM {
     }
     fn runtime_err(&self, msg: &str, chunk: &Chunk) -> InterpretResult {
         let line = chunk.lines[self.ip];
-        println!("{msg}\n[line {line}] in script");
+        eprintln!("{msg}\n[line {line}] in script");
         Err(InterpretError::RuntimeError)
     }
     pub fn run(&mut self, chunk: &Chunk) -> InterpretResult {

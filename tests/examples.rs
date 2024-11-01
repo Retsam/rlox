@@ -5,6 +5,7 @@ enum FailureType {
     CompileError,
     RuntimeError,
 }
+use FailureType::*;
 enum TestCaseResult {
     Success(),
     Failure(FailureType, &'static str),
@@ -53,6 +54,18 @@ fn expressions() {
         file: "expressions.lox",
         stdout: "5\n",
         result: Success(),
+    });
+}
+
+#[test]
+fn plus_operator() {
+    run_test(TestCase {
+        file: "plus_operator.lox",
+        stdout: "3\nab\n",
+        result: Failure(
+            RuntimeError,
+            "Operands must be two numbers or two strings.\n[line 3] in script\n",
+        ),
     });
 }
 
