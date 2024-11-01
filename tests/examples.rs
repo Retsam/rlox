@@ -69,9 +69,9 @@ fn assign_error_test() {
 }
 
 #[test]
-fn var_assignment() {
+fn assignment() {
     run_test(TestCase {
-        file: "var_assignment.lox",
+        file: "assignment.lox",
         stdout: "1\n",
         result: Success(),
     });

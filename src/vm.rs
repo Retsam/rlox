@@ -18,6 +18,7 @@ pub struct VM {
     globals: HashMap<String, Value>,
 }
 
+#[derive(Debug)]
 pub enum InterpretError {
     CompileError,
     RuntimeError,
@@ -46,7 +47,7 @@ impl ValueStack {
         val.expect("stack should not be empty")
     }
     pub fn peek(&mut self) -> &Value {
-        let val = self.values[self.stack_top].as_ref();
+        let val = self.values[self.stack_top - 1].as_ref();
         val.expect("stack should not be empty")
     }
     pub fn debug(&self) {
@@ -76,6 +77,10 @@ impl VM {
             strings: StringInterns::new(),
             globals: HashMap::new(),
         }
+    }
+    pub fn new_and_run(source: String) -> InterpretResult {
+        let mut vm = VM::new();
+        vm.interpret(source)
     }
     pub fn interpret(&mut self, source: String) -> InterpretResult {
         let Some(chunk) = compiler::compile(source, &mut self.strings) else {

@@ -281,6 +281,7 @@ impl<'a> Parser<'a> {
     fn named_variable(&mut self, can_assign: bool) {
         if let Some(var_name_idx) = self.identifier_constant() {
             if can_assign && self.match_t(TokenKind::Equal) {
+                self.expression();
                 self.emit_ins(Op::SetGlobal(var_name_idx));
             } else {
                 self.emit_ins(Op::GetGlobal(var_name_idx));

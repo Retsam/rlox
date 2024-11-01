@@ -47,3 +47,12 @@ fn run_file(path: &str) {
         Ok(()) => {}
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #[allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn main_test() {}
+}
