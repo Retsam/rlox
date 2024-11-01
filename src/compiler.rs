@@ -186,10 +186,9 @@ impl<'a> Parser<'a> {
         let can_assign = precedence <= ParsePrecedence::Assignment;
         prefix(self, can_assign);
 
-        while precedence
-            < Parser::get_rule(self.current.kind)
-                .precedence
-                .unwrap_or(ParsePrecedence::Assignment)
+        while (Parser::get_rule(self.current.kind).precedence)
+            .map(|rule_precedence| precedence <= rule_precedence)
+            .unwrap_or(false)
         {
             self.advance();
             let infix = Parser::get_rule(self.assert_prev().kind)

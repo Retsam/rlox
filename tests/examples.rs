@@ -76,3 +76,12 @@ fn assignment() {
         result: Success(),
     });
 }
+
+#[test]
+fn expressions() {
+    run_test(TestCase {
+        file: "expressions.lox",
+        stdout: "5\n",
+        result: Success(),
+    });
+}
