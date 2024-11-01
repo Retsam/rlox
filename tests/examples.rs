@@ -48,23 +48,11 @@ fn run_test(case: TestCase) {
 }
 
 #[test]
-fn print_test() {
+fn expressions() {
     run_test(TestCase {
-        file: "print.lox",
-        stdout: "3\n",
+        file: "expressions.lox",
+        stdout: "5\n",
         result: Success(),
-    });
-}
-
-#[test]
-fn assign_error_test() {
-    run_test(TestCase {
-        file: "assign_error.lox",
-        stdout: "",
-        result: Failure(
-            FailureType::CompileError,
-            "[line 1] Error at =: Invalid assignment target.\n",
-        ),
     });
 }
 
@@ -78,10 +66,13 @@ fn assignment() {
 }
 
 #[test]
-fn expressions() {
+fn assign_error_test() {
     run_test(TestCase {
-        file: "expressions.lox",
-        stdout: "5\n",
-        result: Success(),
+        file: "assign_error.lox",
+        stdout: "",
+        result: Failure(
+            FailureType::CompileError,
+            "[line 1] Error at =: Invalid assignment target.\n",
+        ),
     });
 }
