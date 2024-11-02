@@ -94,7 +94,7 @@ fn assign_error_test() {
         stdout: "",
         result: Failure(
             FailureType::CompileError,
-            "[line 1] Error at =: Invalid assignment target.\n",
+            "[line 1] Error at '=': Invalid assignment target.\n",
         ),
     });
 }

@@ -189,7 +189,7 @@ impl VM {
                 Ok(Opcode::Negate) => match pop!() {
                     Value::Number(v) => push!(Value::Number(-v)),
                     _ => {
-                        runtime_err!("Attempted to negate non-number");
+                        runtime_err!("Operand must be a number.");
                     }
                 },
                 Ok(Opcode::Not) => match pop!() {

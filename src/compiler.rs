@@ -107,7 +107,7 @@ impl<'a> Parser<'a> {
         let at = if token.kind == TokenKind::Eof {
             " at end"
         } else {
-            &format!(" at {}", token.lexeme)
+            &format!(" at '{}'", token.lexeme)
         };
 
         self.print_err(err, token.line, Some(at));
@@ -180,7 +180,7 @@ impl<'a> Parser<'a> {
         self.advance();
         let prev = self.assert_prev();
         let Some(prefix) = Parser::get_rule(prev.kind).prefix else {
-            self.error("Expect expression");
+            self.error("Expect expression.");
             return;
         };
         let can_assign = precedence <= ParsePrecedence::Assignment;
