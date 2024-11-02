@@ -39,18 +39,27 @@ impl Scanner {
     }
 
     // char-aware slice of source
-    fn slice(&self, start: usize, end: usize) -> String {
-        let mut str = String::new();
-        for i in start..end {
-            str.push(self.source.chars().nth(i).unwrap());
-        }
-        str
+    fn slice(&self, start: usize, end: usize) -> &str {
+        let len = self.source.len();
+        let start_idx = self
+            .source
+            .char_indices()
+            .nth(start)
+            .map(|(i, _)| i)
+            .unwrap_or(len);
+        let end_idx = self
+            .source
+            .char_indices()
+            .nth(end)
+            .map(|(i, _)| i)
+            .unwrap_or(len);
+        &self.source[start_idx..end_idx]
     }
 
     fn make_token(&self, kind: TokenKind) -> ScanResult {
         Ok(Token {
             kind,
-            lexeme: self.slice(self.start, self.current),
+            lexeme: self.slice(self.start, self.current).to_string(),
             line: self.line,
         })
     }
