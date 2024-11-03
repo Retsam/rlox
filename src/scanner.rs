@@ -40,20 +40,7 @@ impl Scanner {
 
     // char-aware slice of source
     fn slice(&self, start: usize, end: usize) -> &str {
-        let len = self.source.len();
-        let start_idx = self
-            .source
-            .char_indices()
-            .nth(start)
-            .map(|(i, _)| i)
-            .unwrap_or(len);
-        let end_idx = self
-            .source
-            .char_indices()
-            .nth(end)
-            .map(|(i, _)| i)
-            .unwrap_or(len);
-        &self.source[start_idx..end_idx]
+        &self.source[start..end]
     }
 
     fn make_token(&self, kind: TokenKind) -> ScanResult {
@@ -181,24 +168,20 @@ impl Scanner {
         }
     }
 
-    fn advance(&mut self) -> Option<char> {
-        let r = self.peek();
-        if r.is_some() {
-            self.current += 1;
-        }
-        r
-    }
-    fn try_match(&mut self, expected: char) -> bool {
-        let res = self.source.chars().nth(self.current) == Some(expected);
-        if res {
-            self.current += 1;
-        }
-        res
-    }
     fn peek(&self) -> Option<char> {
-        self.source.chars().nth(self.current)
+        self.source[self.current..].chars().next()
     }
     fn peek_next(&self) -> Option<char> {
-        self.source.chars().nth(self.current + 1)
+        self.source[self.current..].chars().nth(1)
+    }
+    fn advance(&mut self) -> Option<char> {
+        self.peek().inspect(|c| self.current += c.len_utf8())
+    }
+    fn try_match(&mut self, expected: char) -> bool {
+        let res = self.peek() == Some(expected);
+        if res {
+            self.current += expected.len_utf8();
+        }
+        res
     }
 }

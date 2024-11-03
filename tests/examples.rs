@@ -49,6 +49,15 @@ fn run_test(case: TestCase) {
 }
 
 #[test]
+fn unicode_comments_test() {
+    run_test(TestCase {
+        file: "unicode_comments",
+        stdout: "ok\n",
+        result: Success(),
+    });
+}
+
+#[test]
 fn expressions() {
     run_test(TestCase {
         file: "expressions",
