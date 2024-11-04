@@ -3,6 +3,8 @@ use crate::instructions::Op;
 use crate::scanner::{Scanner, Token, TokenKind};
 use crate::value::{StringInterns, Value};
 
+const UINT8_COUNT: usize = 256;
+
 pub fn compile(str: String, strings: &mut StringInterns) -> Option<Chunk> {
     let mut parser = Parser::new(Scanner::new(str), strings);
 
@@ -22,6 +24,81 @@ pub fn compile(str: String, strings: &mut StringInterns) -> Option<Chunk> {
     Some(parser.chunk)
 }
 
+#[derive(Debug)]
+struct Local {
+    depth: usize,
+    // In the book this would be a borrow, but I think tricky to prove that everything lives long enough
+    name: Token,
+}
+#[derive(Debug)]
+struct Compiler {
+    scope_depth: usize,
+    local_count: usize,
+    locals: [Option<Local>; UINT8_COUNT],
+}
+impl Compiler {
+    fn new() -> Self {
+        Compiler {
+            scope_depth: 0,
+            local_count: 0,
+            locals: [const { None }; UINT8_COUNT],
+        }
+    }
+
+    fn begin_scope(&mut self) {
+        self.scope_depth += 1;
+    }
+    fn end_scope(&mut self) -> usize {
+        self.scope_depth -= 1;
+
+        let mut count = 0;
+        loop {
+            let opt_local = self.peek_local();
+            if let Some(local) = opt_local {
+                if local.depth <= self.scope_depth {
+                    break;
+                }
+                self.pop_local();
+                count += 1;
+            } else {
+                break;
+            }
+        }
+        count
+    }
+    fn add_local(&mut self, name: &Token) -> Result<(), &'static str> {
+        if self.local_count == UINT8_COUNT {
+            return Err("Too many local variables in function.");
+        }
+        for i in (0..self.local_count).rev() {
+            let local = self.locals[i].as_ref().unwrap();
+            if local.depth < self.scope_depth {
+                break;
+            }
+            if local.name.lexeme == name.lexeme {
+                return Err("Already a variable with this name in this scope.");
+            }
+        }
+        self.locals[self.local_count] = Some(Local {
+            name: name.clone(),
+            depth: self.scope_depth,
+        });
+        self.local_count += 1;
+        Ok(())
+    }
+    fn peek_local(&self) -> &Option<Local> {
+        if self.local_count == 0 {
+            &None
+        } else {
+            &self.locals[self.local_count - 1]
+        }
+    }
+    fn pop_local(&mut self) {
+        self.local_count -= 1;
+        self.locals[self.local_count].take();
+    }
+}
+
 struct Parser<'a> {
     scanner: Scanner,
     chunk: Chunk,
@@ -30,6 +107,7 @@ struct Parser<'a> {
     had_error: bool,
     panic_mode: bool,
     strings: &'a mut StringInterns,
+    compiler: Compiler,
 }
 
 fn stub_token() -> Token {
@@ -52,6 +130,7 @@ impl<'a> Parser<'a> {
             had_error: false,
             panic_mode: false,
             strings,
+            compiler: Compiler::new(),
         };
         p.advance();
         p
@@ -207,6 +286,13 @@ impl<'a> Parser<'a> {
         self.parse_precedence(ParsePrecedence::Assignment);
     }
 
+    fn block(&mut self) {
+        while !self.check(TokenKind::RightBrace) && !self.check(TokenKind::Eof) {
+            self.declaration();
+        }
+        self.consume(TokenKind::RightBrace, "Expect '}' after block.");
+    }
+
     fn declaration(&mut self) {
         if self.match_t(TokenKind::Var) {
             self.variable_declaration();
@@ -227,21 +313,49 @@ impl<'a> Parser<'a> {
         self.consume(TokenKind::Semicolon, "Expect ';' after assignment.");
         if let Some(idx) = variable_constant {
             self.define_variable(idx)
-        } else {
+        } else if self.compiler.scope_depth == 0 {
             // only hit this case if we have too many constants - just emit a pop to ignore the value that would be defined
             self.emit_ins(Op::Pop);
         }
     }
     fn parse_variable(&mut self, err: &str) -> Option<u8> {
         self.consume(TokenKind::Identifier, err);
+        self.declare_variable();
+        if self.compiler.scope_depth > 0 {
+            return None;
+        }
         self.identifier_constant()
     }
+    fn declare_variable(&mut self) {
+        // don't register globals
+        if self.compiler.scope_depth == 0 {
+            return;
+        };
+        let name = self.previous.as_ref().unwrap();
+
+        if let Err(str) = self.compiler.add_local(name) {
+            self.error(str);
+        }
+    }
+
     fn define_variable(&mut self, const_idx: u8) {
+        if self.compiler.scope_depth > 0 {
+            // To 'define' a local variable, just leave the value on top of the ValueStack
+            return;
+        }
         self.emit_ins(Op::DefineGlobal(const_idx));
     }
     fn statement(&mut self) {
         if self.match_t(TokenKind::Print) {
             return self.print_statement();
+        } else if self.match_t(TokenKind::LeftBrace) {
+            self.compiler.begin_scope();
+            self.block();
+            let removed_count = self.compiler.end_scope();
+            for _ in 0..removed_count {
+                self.emit_ins(Op::Pop);
+            }
+            return;
         }
         self.expression_statement();
     }
@@ -460,5 +574,53 @@ impl<'a> Parser<'a> {
             }
             _ => parse_rule!(None, None, None),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::scanner::{Token, TokenKind};
+
+    use super::Compiler;
+
+    fn id_token(name: String) -> Token {
+        Token {
+            kind: TokenKind::Identifier,
+            lexeme: name,
+            line: 0,
+        }
+    }
+
+    #[test]
+    fn locals_test() {
+        let mut compiler = Compiler::new();
+
+        let x = id_token("x".to_string());
+        let y = id_token("y".to_string());
+        let z = id_token("z".to_string());
+
+        compiler.begin_scope();
+        compiler.add_local(&x).unwrap();
+        compiler.add_local(&y).unwrap();
+
+        assert_eq!(compiler.local_count, 2);
+
+        assert_eq!(compiler.locals[0].as_ref().unwrap().name.lexeme, "x");
+        assert_eq!(compiler.locals[1].as_ref().unwrap().name.lexeme, "y");
+
+        compiler.begin_scope();
+        compiler.add_local(&z).unwrap();
+
+        assert_eq!(compiler.local_count, 3);
+        assert_eq!(compiler.locals[2].as_ref().unwrap().name.lexeme, "z");
+
+        compiler.end_scope();
+        assert_eq!(compiler.local_count, 2);
+        assert!(compiler.locals[2].is_none());
+
+        compiler.end_scope();
+        assert_eq!(compiler.local_count, 0);
+        assert!(compiler.locals[1].is_none());
+        assert!(compiler.locals[1].is_none());
     }
 }

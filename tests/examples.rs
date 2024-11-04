@@ -107,3 +107,15 @@ fn assign_error_test() {
         ),
     });
 }
+
+#[test]
+fn locals() {
+    run_test(TestCase {
+        file: "locals",
+        stdout: "",
+        result: Failure(
+            CompileError,
+            "[line 3] Error at 'x': Already a variable with this name in this scope.\n",
+        ),
+    });
+}
