@@ -70,14 +70,11 @@ impl Compiler {
         if self.local_count == UINT8_COUNT {
             return Err("Too many local variables in function.");
         }
-        for i in (0..self.local_count).rev() {
-            let local = self.locals[i].as_ref().unwrap();
-            if local.depth < self.scope_depth {
-                break;
-            }
-            if local.name.lexeme == name.lexeme {
-                return Err("Already a variable with this name in this scope.");
-            }
+        let existing_local = self
+            .walk_locals()
+            .find(|local| local.name.lexeme == name.lexeme);
+        if existing_local.is_some() {
+            return Err("Already a variable with this name in this scope.");
         }
         self.locals[self.local_count] = Some(Local {
             name: name.clone(),
@@ -96,6 +93,40 @@ impl Compiler {
     fn pop_local(&mut self) {
         self.local_count -= 1;
         self.locals[self.local_count].take();
+    }
+}
+impl Compiler {
+    fn walk_locals(&self) -> LocalWalker {
+        LocalWalker {
+            idx: if self.local_count == 0 {
+                None
+            } else {
+                Some(self.local_count - 1)
+            },
+            depth: self.scope_depth,
+            locals: &self.locals,
+        }
+    }
+}
+
+struct LocalWalker<'a> {
+    depth: usize,
+    idx: Option<usize>,
+    locals: &'a [Option<Local>; UINT8_COUNT],
+}
+impl<'a> Iterator for LocalWalker<'a> {
+    type Item = &'a Local;
+    fn next(&mut self) -> Option<Self::Item> {
+        let option_local = self.idx.and_then(|c| self.locals[c].as_ref());
+        option_local.and_then(|local| {
+            if local.depth < self.depth {
+                None
+            } else {
+                let idx = self.idx.unwrap();
+                self.idx = if idx == 0 { None } else { Some(idx - 1) };
+                Some(local)
+            }
+        })
     }
 }
 
