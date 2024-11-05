@@ -50,6 +50,16 @@ impl ValueStack {
         let val = self.values[self.stack_top - 1].as_ref();
         val.expect("stack should not be empty")
     }
+    pub fn peek_at(&mut self, from_top: usize) -> &mut Value {
+        if from_top >= self.stack_top {
+            panic!(
+                "Peeked too deep - {from_top} - only had {} values",
+                self.stack_top
+            )
+        }
+        let val = self.values[self.stack_top - from_top - 1].as_mut();
+        val.expect("stack not have empty values in it")
+    }
     pub fn debug(&self) {
         print!("[ ");
         for i in 0..self.stack_top {
@@ -178,6 +188,18 @@ impl VM {
                         self.globals.remove(&var_name.to_string());
                         runtime_err!(&format!("Undefined variable '{var_name}'."))
                     }
+                }
+                Ok(Opcode::GetLocal) => {
+                    let idx = self.read_byte(chunk);
+                    let val = self.values.peek_at(idx as usize).clone();
+                    push!(val)
+                }
+                Ok(Opcode::SetLocal) => {
+                    let idx = self.read_byte(chunk);
+                    // Leave the value there there since assignment evaluates to the assigned value
+                    let val = self.values.peek();
+                    // +1 to account for the peeked value still being on the stack
+                    *self.values.peek_at(idx as usize + 1) = val.clone();
                 }
                 Ok(Opcode::Pop) => {
                     pop!();

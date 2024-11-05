@@ -13,6 +13,8 @@ pub enum Opcode {
     DefineGlobal,
     GetGlobal,
     SetGlobal,
+    GetLocal,
+    SetLocal,
     Nil,
     True,
     False,
@@ -49,6 +51,7 @@ impl From<Opcode> for u8 {
 }
 
 type ConstIdx = u8;
+type StackIdx = u8;
 // This enum exists for the sake of multi-byte instructions:
 //   Instead of `emitByte(OP_CONSTANT)` being followed by `emitByte(idx)` it's `emitOp(Op::Constant(idx))`
 //   This might turn out to be overkill
@@ -61,6 +64,8 @@ pub enum Op {
     DefineGlobal(ConstIdx),
     GetGlobal(ConstIdx),
     SetGlobal(ConstIdx),
+    GetLocal(StackIdx),
+    SetLocal(StackIdx),
     Nil,
     True,
     False,

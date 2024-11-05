@@ -91,7 +91,7 @@ fn strings() {
 fn assignment() {
     run_test(TestCase {
         file: "assignment",
-        stdout: "1\n",
+        stdout: "1\n2\n3\n1\n",
         result: Success(),
     });
 }

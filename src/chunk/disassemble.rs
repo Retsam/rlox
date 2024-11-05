@@ -39,6 +39,12 @@ impl Chunk {
                 print!("{:16} {const_idx:4} '{val}'", $op_code);
             }};
         }
+        macro_rules! op_with_byte_arg {
+            ($op_code: literal) => {{
+                let byte = read_byte(&mut offset);
+                print!("{:16} {byte:4}", $op_code);
+            }};
+        }
         match read_byte(&mut offset).try_into() {
             // double match saves `Ok()` wrapping on all the cases
             Ok(op) => match op {
@@ -47,6 +53,8 @@ impl Chunk {
                 Opcode::DefineGlobal => op_with_const_idx!("OP_DEFINE_GLOBAL"),
                 Opcode::GetGlobal => op_with_const_idx!("OP_GET_GLOBAL"),
                 Opcode::SetGlobal => op_with_const_idx!("OP_SET_GLOBAL"),
+                Opcode::GetLocal => op_with_byte_arg!("OP_GET_LOCAL"),
+                Opcode::SetLocal => op_with_byte_arg!("OP_SET_LOCAL"),
                 Opcode::Print => print!("OP_PRINT"),
                 Opcode::Pop => print!("OP_POP"),
                 Opcode::Negate => print!("OP_NEGATE"),

@@ -45,6 +45,8 @@ impl Chunk {
             Op::DefineGlobal(val) => double_op!(DefineGlobal, val),
             Op::GetGlobal(val) => double_op!(GetGlobal, val),
             Op::SetGlobal(val) => double_op!(SetGlobal, val),
+            Op::GetLocal(val) => double_op!(GetLocal, val),
+            Op::SetLocal(val) => double_op!(SetLocal, val),
             Op::Return => simple_op!(Return),
             Op::Print => simple_op!(Print),
             Op::Pop => simple_op!(Pop),

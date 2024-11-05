@@ -71,7 +71,7 @@ impl Compiler {
             return Err("Too many local variables in function.");
         }
         let existing_local = self
-            .walk_locals()
+            .iter_same_depth_locals()
             .find(|local| local.name.lexeme == name.lexeme);
         if existing_local.is_some() {
             return Err("Already a variable with this name in this scope.");
@@ -83,34 +83,46 @@ impl Compiler {
         self.local_count += 1;
         Ok(())
     }
-    fn peek_local(&self) -> &Option<Local> {
-        if self.local_count == 0 {
-            &None
-        } else {
-            &self.locals[self.local_count - 1]
-        }
+    fn peek_local(&self) -> Option<&Local> {
+        safe_decr(self.local_count).and_then(|c| self.locals[c].as_ref())
     }
     fn pop_local(&mut self) {
         self.local_count -= 1;
         self.locals[self.local_count].take();
     }
+    fn resolve_local(&self, name: &Token) -> Option<u8> {
+        self.iter_locals()
+            .position(|local| local.name.lexeme == name.lexeme)
+            .map(|i| i as u8)
+    }
+}
+fn safe_decr(val: usize) -> Option<usize> {
+    if val == 0 {
+        None
+    } else {
+        Some(val - 1)
+    }
 }
 impl Compiler {
-    fn walk_locals(&self) -> LocalWalker {
+    fn iter_same_depth_locals(&self) -> LocalWalker {
         LocalWalker {
-            idx: if self.local_count == 0 {
-                None
-            } else {
-                Some(self.local_count - 1)
-            },
-            depth: self.scope_depth,
+            idx: safe_decr(self.local_count),
+            depth: Some(self.scope_depth),
+            locals: &self.locals,
+        }
+    }
+    fn iter_locals(&self) -> LocalWalker {
+        LocalWalker {
+            idx: safe_decr(self.local_count),
+            depth: None,
             locals: &self.locals,
         }
     }
 }
 
 struct LocalWalker<'a> {
-    depth: usize,
+    // If none, iters all locals, otherwise iters just the current depth
+    depth: Option<usize>,
     idx: Option<usize>,
     locals: &'a [Option<Local>; UINT8_COUNT],
 }
@@ -119,13 +131,13 @@ impl<'a> Iterator for LocalWalker<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let option_local = self.idx.and_then(|c| self.locals[c].as_ref());
         option_local.and_then(|local| {
-            if local.depth < self.depth {
-                None
-            } else {
-                let idx = self.idx.unwrap();
-                self.idx = if idx == 0 { None } else { Some(idx - 1) };
-                Some(local)
+            // if self.depth is None, always evaluate to false
+            if local.depth < self.depth.unwrap_or(local.depth) {
+                return None;
             }
+            let idx = self.idx.unwrap();
+            self.idx = if idx == 0 { None } else { Some(idx - 1) };
+            Some(local)
         })
     }
 }
@@ -423,15 +435,21 @@ impl<'a> Parser<'a> {
         self.named_variable(can_assign);
     }
     fn named_variable(&mut self, can_assign: bool) {
-        if let Some(var_name_idx) = self.identifier_constant() {
-            if can_assign && self.match_t(TokenKind::Equal) {
-                self.expression();
-                self.emit_ins(Op::SetGlobal(var_name_idx));
-            } else {
-                self.emit_ins(Op::GetGlobal(var_name_idx));
-            }
+        let var_name = self.assert_prev();
+        let (set_op, get_op) = self
+            .compiler
+            .resolve_local(var_name)
+            .map(|idx| (Op::SetLocal(idx), Op::GetLocal(idx)))
+            .or_else(|| {
+                self.identifier_constant()
+                    .map(|idx| (Op::SetGlobal(idx), Op::GetGlobal(idx)))
+            })
+            .unwrap_or((Op::Pop, Op::Nil));
+        if can_assign && self.match_t(TokenKind::Equal) {
+            self.expression();
+            self.emit_ins(set_op);
         } else {
-            self.emit_ins(Op::Nil);
+            self.emit_ins(get_op);
         }
     }
     fn grouping(&mut self, _: bool) {
