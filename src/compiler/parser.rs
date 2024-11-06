@@ -35,6 +35,15 @@ impl<'a> Parser<'a> {
         }
     }
 
+    // This is a bit of a workaround - we need to emit a Pop for each variable that goes out of scope
+    //  but I don't want to have to nest all the compiler logic in here with instruction emitting
+    fn end_scope(&mut self) {
+        let removed_count = self.compiler.end_scope();
+        for _ in 0..removed_count {
+            self.emit_ins(Op::Pop);
+        }
+    }
+
     pub fn expression(&mut self) {
         self.parse_precedence(ParsePrecedence::Assignment);
     }
@@ -104,10 +113,7 @@ impl<'a> Parser<'a> {
         } else if self.match_t(TokenKind::LeftBrace) {
             self.compiler.begin_scope();
             self.block();
-            let removed_count = self.compiler.end_scope();
-            for _ in 0..removed_count {
-                self.emit_ins(Op::Pop);
-            }
+            self.end_scope();
             return;
         }
         self.expression_statement();
