@@ -54,5 +54,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn main_test() {}
+    fn main_test() {
+        VM::new_and_run("".to_string()).unwrap();
+    }
 }
