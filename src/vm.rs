@@ -63,10 +63,12 @@ impl ValueStack {
     pub fn debug(&self) {
         print!("[ ");
         for i in 0..self.stack_top {
-            print!(
-                "{} ",
-                self.values[i].as_ref().expect("stack should not be empty")
-            )
+            let val = self.values[i].as_ref().expect("stack should not be empty");
+            if let Value::String(str) = val {
+                print!("'{str}' ")
+            } else {
+                print!("{val} ")
+            }
         }
         println!("]");
     }
