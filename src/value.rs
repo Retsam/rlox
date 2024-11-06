@@ -11,6 +11,12 @@ pub enum Value {
     Nil,
 }
 
+impl Value {
+    pub fn is_falsey(&self) -> bool {
+        matches!(self, Value::Nil | Value::Bool(false))
+    }
+}
+
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {

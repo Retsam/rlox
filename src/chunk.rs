@@ -40,6 +40,12 @@ impl Chunk {
                 self.write_code($val, line)
             }};
         }
+        macro_rules! u16_op {
+            ($kind: ident, $val: ident) => {{
+                simple_op!($kind);
+                self.write_u16($val, line)
+            }};
+        }
         match ins {
             Op::Constant(val) => double_op!(Constant, val),
             Op::DefineGlobal(val) => double_op!(DefineGlobal, val),
@@ -47,6 +53,10 @@ impl Chunk {
             Op::SetGlobal(val) => double_op!(SetGlobal, val),
             Op::GetLocal(val) => double_op!(GetLocal, val),
             Op::SetLocal(val) => double_op!(SetLocal, val),
+
+            Op::Jump(val) => u16_op!(Jump, val),
+            Op::JumpIfFalse(val) => u16_op!(JumpIfFalse, val),
+
             Op::Return => simple_op!(Return),
             Op::Print => simple_op!(Print),
             Op::Pop => simple_op!(Pop),
@@ -67,6 +77,12 @@ impl Chunk {
     fn write_code(&mut self, code: u8, line: usize) {
         self.code.push(code);
         self.lines.push(line);
+    }
+    fn write_u16(&mut self, value: u16, line: usize) {
+        // Writes the u16 as two separate u8s (big endian order)
+        for byte in value.to_be_bytes() {
+            self.write_code(byte, line);
+        }
     }
     pub fn add_constant(&mut self, value: Value) -> Option<u8> {
         self.constants.push(value);

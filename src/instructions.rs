@@ -7,6 +7,8 @@ use std::mem::transmute;
 #[repr(u8)]
 pub enum Opcode {
     Return = 1,
+    Jump,
+    JumpIfFalse,
     Print,
     Pop,
     Constant,
@@ -58,6 +60,8 @@ type StackIdx = u8;
 #[derive(Debug)]
 pub enum Op {
     Return,
+    Jump(u16),
+    JumpIfFalse(u16),
     Print,
     Pop,
     Constant(ConstIdx),

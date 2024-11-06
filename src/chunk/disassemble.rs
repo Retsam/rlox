@@ -45,10 +45,19 @@ impl Chunk {
                 print!("{:16} {byte:4}", $op_code);
             }};
         }
+        macro_rules! op_with_u16_arg {
+            ($op_code: literal) => {{
+                let val = u16::from_be_bytes([read_byte(&mut offset), read_byte(&mut offset)]);
+
+                print!("{:16} {val:4}", $op_code);
+            }};
+        }
         match read_byte(&mut offset).try_into() {
             // double match saves `Ok()` wrapping on all the cases
             Ok(op) => match op {
                 Opcode::Return => print!("OP_RETURN"),
+                Opcode::Jump => op_with_u16_arg!("OP_JUMP"),
+                Opcode::JumpIfFalse => op_with_u16_arg!("OP_JUMP_IF_FALSE"),
                 Opcode::Constant => op_with_const_idx!("OP_CONSTANT"),
                 Opcode::DefineGlobal => op_with_const_idx!("OP_DEFINE_GLOBAL"),
                 Opcode::GetGlobal => op_with_const_idx!("OP_GET_GLOBAL"),

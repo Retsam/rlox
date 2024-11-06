@@ -132,6 +132,11 @@ impl VM {
                 self.values.pop()
             };
         }
+        macro_rules! peek {
+            () => {
+                self.values.peek()
+            };
+        }
         macro_rules! runtime_err {
             ($msg: expr) => {
                 return self.runtime_err($msg, chunk)
@@ -157,6 +162,17 @@ impl VM {
                 Ok(Opcode::Return) => {
                     return Ok(());
                 }
+                Ok(Opcode::Jump) => {
+                    self.ip +=
+                        u16::from_be_bytes([self.read_byte(chunk), self.read_byte(chunk)]) as usize;
+                }
+                Ok(Opcode::JumpIfFalse) => {
+                    let dist = u16::from_be_bytes([self.read_byte(chunk), self.read_byte(chunk)]);
+                    let val = peek!();
+                    if val.is_falsey() {
+                        self.ip += dist as usize;
+                    }
+                }
                 Ok(Opcode::Constant) => {
                     let val = self.read_constant(chunk);
                     push!(val.clone());
@@ -178,7 +194,7 @@ impl VM {
                 }
                 Ok(Opcode::SetGlobal) => {
                     let var_name = self.read_string_constant(chunk);
-                    let val = self.values.peek();
+                    let val = peek!();
 
                     if self
                         .globals
@@ -197,7 +213,7 @@ impl VM {
                 Ok(Opcode::SetLocal) => {
                     let idx = self.read_byte(chunk);
                     // Leave the value there there since assignment evaluates to the assigned value
-                    let val = self.values.peek();
+                    let val = peek!();
                     // +1 to account for the peeked value still being on the stack
                     *self.values.peek_at(idx as usize + 1) = val.clone();
                 }
@@ -214,10 +230,10 @@ impl VM {
                         runtime_err!("Operand must be a number.");
                     }
                 },
-                Ok(Opcode::Not) => match pop!() {
-                    Value::Nil | Value::Bool(false) => push!(Value::Bool(true)),
-                    _ => push!(Value::Bool(false)),
-                },
+                Ok(Opcode::Not) => {
+                    let val = pop!();
+                    push!(Value::Bool(val.is_falsey()))
+                }
                 Ok(Opcode::Equal) => {
                     let (v2, v1) = (pop!(), pop!());
                     push!(Value::Bool(v1 == v2));

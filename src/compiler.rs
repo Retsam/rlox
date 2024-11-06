@@ -161,6 +161,19 @@ impl<'a> Parser<'a> {
     fn emit_ins(&mut self, ins: Op) {
         self.chunk.write(ins, self.assert_prev().line);
     }
+    fn emit_jump<JumpIns: FnOnce(u16) -> Op>(&mut self, jump: JumpIns) -> usize {
+        // Placeholder value, patched after we know how far to jump
+        self.emit_ins(jump(9001));
+        self.chunk.code.len()
+    }
+    fn patch_jump(&mut self, jump_from: usize) {
+        let jump = (self.chunk.code.len() - jump_from) as u16;
+        let [upper, lower] = jump.to_be_bytes();
+        // jump_from is the index after the jump operation was written, so the code to patch
+        // are the two places before it
+        self.chunk.code[jump_from - 2] = upper;
+        self.chunk.code[jump_from - 1] = lower;
+    }
     fn make_constant(&mut self, val: Value) -> Option<u8> {
         let res = self.chunk.add_constant(val);
         res.or_else(|| {
