@@ -115,7 +115,9 @@ fn locals() {
         stdout: "",
         result: Failure(
             CompileError,
-            "[line 3] Error at 'x': Already a variable with this name in this scope.\n",
+            "\
+[line 3] Error at 'x': Already a variable with this name in this scope.
+[line 6] Error at 'x': Can't read local variable in its own initializer.\n",
         ),
     });
 }

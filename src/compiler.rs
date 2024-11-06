@@ -26,7 +26,8 @@ pub fn compile(str: String, strings: &mut StringInterns) -> Option<Chunk> {
 
 #[derive(Debug)]
 struct Local {
-    depth: usize,
+    // depth is None for uninitialized variables
+    depth: Option<usize>,
     // In the book this would be a borrow, but I think tricky to prove that everything lives long enough
     name: Token,
 }
@@ -55,7 +56,7 @@ impl Compiler {
         loop {
             let opt_local = self.peek_local();
             if let Some(local) = opt_local {
-                if local.depth <= self.scope_depth {
+                if local.depth.expect("Ended scope with uninitialized local") <= self.scope_depth {
                     break;
                 }
                 self.pop_local();
@@ -78,22 +79,30 @@ impl Compiler {
         }
         self.locals[self.local_count] = Some(Local {
             name: name.clone(),
-            depth: self.scope_depth,
+            depth: None,
         });
         self.local_count += 1;
         Ok(())
     }
-    fn peek_local(&self) -> Option<&Local> {
-        safe_decr(self.local_count).and_then(|c| self.locals[c].as_ref())
+    fn mark_initialized(&mut self) {
+        let depth = self.scope_depth;
+        let local = self
+            .peek_local()
+            .expect("Attempted to mark initialized when no variable is being defined");
+        local.depth = Some(depth);
+    }
+    fn peek_local(&mut self) -> Option<&mut Local> {
+        safe_decr(self.local_count).and_then(|c| self.locals[c].as_mut())
     }
     fn pop_local(&mut self) {
         self.local_count -= 1;
         self.locals[self.local_count].take();
     }
-    fn resolve_local(&self, name: &Token) -> Option<u8> {
+    fn resolve_local(&self, name: &Token) -> Option<(u8, bool)> {
         self.iter_locals()
-            .position(|local| local.name.lexeme == name.lexeme)
-            .map(|i| i as u8)
+            .enumerate()
+            .find(|(_, local)| local.name.lexeme == name.lexeme)
+            .map(|(i, local)| (i as u8, local.depth.is_some()))
     }
 }
 fn safe_decr(val: usize) -> Option<usize> {
@@ -131,9 +140,12 @@ impl<'a> Iterator for LocalWalker<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let option_local = self.idx.and_then(|c| self.locals[c].as_ref());
         option_local.and_then(|local| {
-            // if self.depth is None, always evaluate to false
-            if local.depth < self.depth.unwrap_or(local.depth) {
-                return None;
+            // Bail out if we're trying to scan the current scope and the local is beneath it
+            //      (If local.depth is None it's being initialized and is part of the current scope)
+            if let (Some(local_depth), Some(target_depth)) = (local.depth, self.depth) {
+                if local_depth < target_depth {
+                    return None;
+                }
             }
             let idx = self.idx.unwrap();
             self.idx = if idx == 0 { None } else { Some(idx - 1) };
@@ -354,12 +366,7 @@ impl<'a> Parser<'a> {
             self.emit_ins(Op::Nil);
         }
         self.consume(TokenKind::Semicolon, "Expect ';' after assignment.");
-        if let Some(idx) = variable_constant {
-            self.define_variable(idx)
-        } else if self.compiler.scope_depth == 0 {
-            // only hit this case if we have too many constants - just emit a pop to ignore the value that would be defined
-            self.emit_ins(Op::Pop);
-        }
+        self.define_variable(variable_constant)
     }
     fn parse_variable(&mut self, err: &str) -> Option<u8> {
         self.consume(TokenKind::Identifier, err);
@@ -381,12 +388,17 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn define_variable(&mut self, const_idx: u8) {
+    fn define_variable(&mut self, maybe_global_idx: Option<u8>) {
         if self.compiler.scope_depth > 0 {
             // To 'define' a local variable, just leave the value on top of the ValueStack
+            self.compiler.mark_initialized();
             return;
         }
-        self.emit_ins(Op::DefineGlobal(const_idx));
+        self.emit_ins(match maybe_global_idx {
+            Some(const_idx) => Op::DefineGlobal(const_idx),
+            // only hit this case if we have too many constants - just emit a pop to ignore the value that would be defined
+            _ => Op::Pop,
+        });
     }
     fn statement(&mut self) {
         if self.match_t(TokenKind::Print) {
@@ -439,7 +451,12 @@ impl<'a> Parser<'a> {
         let (set_op, get_op) = self
             .compiler
             .resolve_local(var_name)
-            .map(|idx| (Op::SetLocal(idx), Op::GetLocal(idx)))
+            .map(|(idx, initialized)| {
+                if !initialized {
+                    self.error("Can't read local variable in its own initializer.")
+                }
+                (Op::SetLocal(idx), Op::GetLocal(idx))
+            })
             .or_else(|| {
                 self.identifier_constant()
                     .map(|idx| (Op::SetGlobal(idx), Op::GetGlobal(idx)))
@@ -650,7 +667,9 @@ mod tests {
 
         compiler.begin_scope();
         compiler.add_local(&x).unwrap();
+        compiler.mark_initialized();
         compiler.add_local(&y).unwrap();
+        compiler.mark_initialized();
 
         assert_eq!(compiler.local_count, 2);
 
@@ -659,6 +678,7 @@ mod tests {
 
         compiler.begin_scope();
         compiler.add_local(&z).unwrap();
+        compiler.mark_initialized();
 
         assert_eq!(compiler.local_count, 3);
         assert_eq!(compiler.locals[2].as_ref().unwrap().name.lexeme, "z");
