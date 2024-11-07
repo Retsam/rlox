@@ -121,3 +121,12 @@ fn locals() {
         ),
     });
 }
+
+#[test]
+fn logical() {
+    run_test(TestCase {
+        file: "logical",
+        stdout: "one\nnil\nfalse\n3\nzero\nnothing\ntwo\nnil\n3\nnil\n",
+        result: Success(),
+    });
+}

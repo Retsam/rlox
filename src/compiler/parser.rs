@@ -248,6 +248,23 @@ impl<'a> Parser<'a> {
             _ => panic!("Unexpected literal token"),
         });
     }
+    fn and(&mut self, _: bool) {
+        let skip_rhs = self.emit_jump(Op::JumpIfFalse);
+        self.emit_ins(Op::Pop);
+        self.parse_precedence(ParsePrecedence::And);
+        self.patch_jump(skip_rhs);
+    }
+
+    fn or(&mut self, _: bool) {
+        // skip_skip_rhs jump
+        self.emit_ins(Op::JumpIfFalse(3));
+
+        let skip_rhs = self.emit_jump(Op::Jump);
+
+        self.emit_ins(Op::Pop);
+        self.parse_precedence(ParsePrecedence::And);
+        self.patch_jump(skip_rhs);
+    }
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
@@ -362,6 +379,12 @@ impl<'a> Parser<'a> {
             }
             TokenKind::Identifier => {
                 parse_rule!(variable, None, None)
+            }
+            TokenKind::And => {
+                parse_rule!(None, and, And)
+            }
+            TokenKind::Or => {
+                parse_rule!(None, or, Or)
             }
             _ => parse_rule!(None, None, None),
         }

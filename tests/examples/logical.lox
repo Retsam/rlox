@@ -1,0 +1,12 @@
+print "zero" and "one";
+print nil and "nothing";
+print "one" and false and "two";
+print 1 and 2 and 3;
+
+print "zero" or "one";
+print nil or "nothing";
+print nil or "two" or false;
+print false or nil;
+
+print nil and 2 or 3;
+print nil and (2 or 3);
