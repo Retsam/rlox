@@ -7,7 +7,7 @@ enum FailureType {
 }
 use FailureType::*;
 enum TestCaseResult {
-    Success(),
+    Success,
     Failure(FailureType, &'static str),
 }
 use TestCaseResult::*;
@@ -34,7 +34,7 @@ fn run_test(case: TestCase) {
     assert_eq!(str::from_utf8(&output.stdout).unwrap(), stdout);
 
     match result {
-        TestCaseResult::Success() => assert!(output.status.success(), "Expected no error code"),
+        TestCaseResult::Success => assert!(output.status.success(), "Expected no error code"),
         TestCaseResult::Failure(failure_type, stderr) => {
             assert_eq!(
                 output.status.code().unwrap(),
@@ -53,7 +53,7 @@ fn unicode_comments_test() {
     run_test(TestCase {
         file: "unicode_comments",
         stdout: "ok\n",
-        result: Success(),
+        result: Success,
     });
 }
 
@@ -62,7 +62,7 @@ fn expressions() {
     run_test(TestCase {
         file: "expressions",
         stdout: "5\n",
-        result: Success(),
+        result: Success,
     });
 }
 
@@ -83,7 +83,7 @@ fn strings() {
     run_test(TestCase {
         file: "strings",
         stdout: "true\ntrue\nfalse\n",
-        result: Success(),
+        result: Success,
     });
 }
 
@@ -92,7 +92,7 @@ fn assignment() {
     run_test(TestCase {
         file: "assignment",
         stdout: "1\n2\n3\n1\n",
-        result: Success(),
+        result: Success,
     });
 }
 
@@ -127,6 +127,15 @@ fn logical() {
     run_test(TestCase {
         file: "logical",
         stdout: "one\nnil\nfalse\n3\nzero\nnothing\ntwo\nnil\n3\nnil\n",
-        result: Success(),
+        result: Success,
+    });
+}
+
+#[test]
+fn control_flow() {
+    run_test(TestCase {
+        file: "control_flow",
+        stdout: "false\nalways\n0\n1\n2\n",
+        result: Success,
     });
 }

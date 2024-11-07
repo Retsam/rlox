@@ -56,6 +56,7 @@ impl Chunk {
 
             Op::Jump(val) => u16_op!(Jump, val),
             Op::JumpIfFalse(val) => u16_op!(JumpIfFalse, val),
+            Op::Loop(val) => u16_op!(Loop, val),
 
             Op::Return => simple_op!(Return),
             Op::Print => simple_op!(Print),

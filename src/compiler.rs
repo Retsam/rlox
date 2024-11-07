@@ -174,6 +174,10 @@ impl<'a> Parser<'a> {
         self.chunk.code[jump_from - 2] = upper;
         self.chunk.code[jump_from - 1] = lower;
     }
+    fn emit_loop(&mut self, loop_to: usize) {
+        let current_pos = self.chunk.code.len();
+        self.emit_ins(Op::Loop((current_pos - loop_to) as u16));
+    }
     fn make_constant(&mut self, val: Value) -> Option<u8> {
         let res = self.chunk.add_constant(val);
         res.or_else(|| {

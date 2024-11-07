@@ -58,6 +58,7 @@ impl Chunk {
                 Opcode::Return => print!("OP_RETURN"),
                 Opcode::Jump => op_with_u16_arg!("OP_JUMP"),
                 Opcode::JumpIfFalse => op_with_u16_arg!("OP_JUMP_IF_FALSE"),
+                Opcode::Loop => op_with_u16_arg!("OP_LOOP"),
                 Opcode::Constant => op_with_const_idx!("OP_CONSTANT"),
                 Opcode::DefineGlobal => op_with_const_idx!("OP_DEFINE_GLOBAL"),
                 Opcode::GetGlobal => op_with_const_idx!("OP_GET_GLOBAL"),

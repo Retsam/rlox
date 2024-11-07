@@ -4,3 +4,10 @@ if(2 + 2 == 5) {
     print "false";
 }
 print "always";
+
+var x = 0;
+while(x < 2) {
+    print x;
+    x = x + 1;
+}
+print x;

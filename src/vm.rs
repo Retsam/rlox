@@ -42,6 +42,10 @@ impl ValueStack {
         self.stack_top += 1;
     }
     pub fn pop(&mut self) -> Value {
+        debug_assert!(
+            self.stack_top > 0,
+            "Attempted to pop from empty value stack"
+        );
         self.stack_top -= 1;
         let val = self.values[self.stack_top].take();
         val.expect("stack should not be empty")
@@ -174,6 +178,12 @@ impl VM {
                     if val.is_falsey() {
                         self.ip += dist as usize;
                     }
+                }
+                Ok(Opcode::Loop) => {
+                    let go_back =
+                        u16::from_be_bytes([self.read_byte(chunk), self.read_byte(chunk)]) as usize;
+                    // Need to jump past the Loop operation itself
+                    self.ip -= go_back + 3;
                 }
                 Ok(Opcode::Constant) => {
                     let val = self.read_constant(chunk);

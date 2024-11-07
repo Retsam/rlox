@@ -111,7 +111,7 @@ impl<'a> Parser<'a> {
         if self.match_t(TokenKind::Print) {
             self.print_statement();
         } else if self.match_t(TokenKind::If) {
-            self.consume(TokenKind::LeftParen, "Expect '(' after if.");
+            self.consume(TokenKind::LeftParen, "Expect '(' after 'if'.");
             self.expression();
             self.consume(TokenKind::RightParen, "Expect ')' after condition.");
 
@@ -131,6 +131,18 @@ impl<'a> Parser<'a> {
 
             // If there's no else, just jumps over the pop for a falsy condition
             self.patch_jump(jump_over_else);
+        } else if self.match_t(TokenKind::While) {
+            self.consume(TokenKind::LeftParen, "Expect '(' after 'while'.");
+            let jump_back_target = self.chunk.code.len();
+            self.expression();
+            self.consume(TokenKind::RightParen, "Expect ')' after condition.");
+
+            let exit_jump = self.emit_jump(Op::JumpIfFalse);
+            self.emit_ins(Op::Pop);
+            self.statement();
+            self.emit_loop(jump_back_target);
+            self.patch_jump(exit_jump);
+            self.emit_ins(Op::Pop);
         } else if self.match_t(TokenKind::LeftBrace) {
             self.compiler.begin_scope();
             self.block();
