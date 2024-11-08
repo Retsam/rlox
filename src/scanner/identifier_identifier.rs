@@ -11,7 +11,6 @@ fn match_rest(expected: &'static str, actual: &str, skip: usize, if_match: Token
 impl Scanner {
     pub(super) fn identifier_type(&mut self) -> TokenKind {
         let word = self.slice(self.start, self.current);
-
         // The idea is to be efficient, only checking a first letter match, rather than, e.g. looking up in a hash-table, which might be more expensive.
         // TBH, I'm not sure this is significantly more efficient than just doing a bunch of == comparisons; may want to benchmark it, but this is (roughly) the approach the book took
         macro_rules! simple_match {
@@ -23,10 +22,14 @@ impl Scanner {
                 }
             };
         }
+        simple_match!("if", If);
         simple_match!("and", And);
         simple_match!("class", Class);
         simple_match!("else", Else);
-        if &word[0..1] == "f" {
+        if &word[..1] == "f" {
+            if word.len() < 3 {
+                return TokenKind::Identifier;
+            }
             return match &word[1..2] {
                 "a" => match_rest("lse", word, 2, TokenKind::False),
                 "o" => match_rest("r", word, 2, TokenKind::For),
@@ -34,12 +37,14 @@ impl Scanner {
                 _ => TokenKind::Identifier,
             };
         }
-        simple_match!("if", If);
         simple_match!("nil", Nil);
         simple_match!("or", Or);
         simple_match!("print", Print);
         simple_match!("return", Return);
         if &word[0..1] == "t" {
+            if word.len() < 4 {
+                return TokenKind::Identifier;
+            }
             return match &word[1..2] {
                 "h" => match_rest("is", word, 2, TokenKind::This),
                 "r" => match_rest("ue", word, 2, TokenKind::True),
