@@ -135,7 +135,10 @@ fn logical() {
 fn control_flow() {
     run_test(TestCase {
         file: "control_flow",
-        stdout: "false\nalways\n0\n1\n2\n",
-        result: Success,
+        stdout: "false\nalways\n0\n1\n2\n0\n1\n0\n1\n1\n2\n",
+        result: Failure(
+            RuntimeError,
+            "Undefined variable 'g'.\n[line 31] in script\n",
+        ),
     });
 }

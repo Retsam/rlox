@@ -11,3 +11,21 @@ while(x < 2) {
     x = x + 1;
 }
 print x;
+
+for(var f=0; f<2; f = f + 1) {
+    print f;
+}
+
+// no initializer
+x = 0;
+for(;x < 2;x = x+1) {
+    print x;
+}
+
+// no updater
+for(var g=0; g<2;) {
+    g = g + 1;
+    print g;
+}
+// Error out of scope
+print g;
