@@ -158,16 +158,20 @@ impl<'a> Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
+    // Used to get the position of the ip for the current code - used to calculate jumps
+    fn pos(&self) -> usize {
+        self.chunk.code.len()
+    }
     fn emit_ins(&mut self, ins: Op) {
         self.chunk.write(ins, self.assert_prev().line);
     }
     fn emit_jump<JumpIns: FnOnce(u16) -> Op>(&mut self, jump: JumpIns) -> usize {
         // Placeholder value, patched after we know how far to jump
         self.emit_ins(jump(9001));
-        self.chunk.code.len()
+        self.pos()
     }
     fn patch_jump(&mut self, jump_from: usize) {
-        let jump = (self.chunk.code.len() - jump_from) as u16;
+        let jump = (self.pos() - jump_from) as u16;
         let [upper, lower] = jump.to_be_bytes();
         // jump_from is the index after the jump operation was written, so the code to patch
         // are the two places before it
@@ -175,8 +179,7 @@ impl<'a> Parser<'a> {
         self.chunk.code[jump_from - 1] = lower;
     }
     fn emit_loop(&mut self, loop_to: usize) {
-        let current_pos = self.chunk.code.len();
-        self.emit_ins(Op::Loop((current_pos - loop_to) as u16));
+        self.emit_ins(Op::Loop((self.pos() - loop_to) as u16));
     }
     fn make_constant(&mut self, val: Value) -> Option<u8> {
         let res = self.chunk.add_constant(val);

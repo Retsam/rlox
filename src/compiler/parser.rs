@@ -151,7 +151,7 @@ impl<'a> Parser<'a> {
     }
     fn while_statement(&mut self) {
         self.consume(TokenKind::LeftParen, "Expect '(' after 'while'.");
-        let jump_back_target = self.chunk.code.len();
+        let jump_back_target = self.pos();
         self.expression();
         self.consume(TokenKind::RightParen, "Expect ')' after condition.");
 
