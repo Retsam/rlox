@@ -114,6 +114,8 @@ impl<'a> Parser<'a> {
             self.if_statement();
         } else if self.match_t(TokenKind::While) {
             self.while_statement();
+        } else if self.match_t(TokenKind::For) {
+            self.for_statement();
         } else if self.match_t(TokenKind::LeftBrace) {
             self.compiler.begin_scope();
             self.block();
@@ -161,6 +163,62 @@ impl<'a> Parser<'a> {
         self.emit_loop(jump_back_target);
         self.patch_jump(exit_jump);
         self.emit_ins(Op::Pop);
+    }
+    fn for_statement(&mut self) {
+        self.compiler.begin_scope();
+        self.consume(TokenKind::LeftParen, "Expect '(' after 'for'.");
+        // initializer
+        match self.current.kind {
+            TokenKind::Semicolon => self.advance(),
+            TokenKind::Var => {
+                self.advance();
+                self.variable_declaration();
+            }
+            _ => self.expression_statement(),
+        }
+        let mut loop_start = self.pos();
+        // condition
+        let exit_jump = match self.current.kind {
+            TokenKind::Semicolon => {
+                self.advance();
+                None
+            }
+            _ => {
+                self.expression();
+                self.consume(TokenKind::Semicolon, "Expect ';' after condition.");
+
+                let jump = self.emit_jump(Op::JumpIfFalse);
+                self.emit_ins(Op::Pop);
+                Some(jump)
+            }
+        };
+
+        // updater
+
+        match self.current.kind {
+            TokenKind::RightParen => self.advance(),
+            _ => {
+                let skip_updater = self.emit_jump(Op::Jump);
+                let updater_start = self.pos();
+                self.expression();
+                self.emit_ins(Op::Pop);
+                self.consume(TokenKind::RightParen, "Expect ')' after updater.");
+                self.emit_loop(loop_start);
+                self.patch_jump(skip_updater);
+                loop_start = updater_start;
+            }
+        }
+
+        self.statement();
+        // Loop back, either to the start of the updater, if there is one
+        self.emit_loop(loop_start);
+
+        if let Some(exit_jump) = exit_jump {
+            self.patch_jump(exit_jump);
+            self.emit_ins(Op::Pop);
+        }
+
+        self.compiler.end_scope();
     }
     fn expression_statement(&mut self) {
         self.expression();

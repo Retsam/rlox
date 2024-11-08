@@ -165,6 +165,7 @@ impl<'a> Parser<'a> {
     fn emit_ins(&mut self, ins: Op) {
         self.chunk.write(ins, self.assert_prev().line);
     }
+    #[must_use]
     fn emit_jump<JumpIns: FnOnce(u16) -> Op>(&mut self, jump: JumpIns) -> usize {
         // Placeholder value, patched after we know how far to jump
         self.emit_ins(jump(9001));
