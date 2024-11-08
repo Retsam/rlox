@@ -111,38 +111,9 @@ impl<'a> Parser<'a> {
         if self.match_t(TokenKind::Print) {
             self.print_statement();
         } else if self.match_t(TokenKind::If) {
-            self.consume(TokenKind::LeftParen, "Expect '(' after 'if'.");
-            self.expression();
-            self.consume(TokenKind::RightParen, "Expect ')' after condition.");
-
-            let jump_over_then = self.emit_jump(Op::JumpIfFalse);
-
-            self.emit_ins(Op::Pop);
-            self.statement();
-
-            let jump_over_else = self.emit_jump(Op::Jump);
-            self.patch_jump(jump_over_then);
-
-            self.emit_ins(Op::Pop);
-
-            if self.match_t(TokenKind::Else) {
-                self.statement();
-            }
-
-            // If there's no else, just jumps over the pop for a falsy condition
-            self.patch_jump(jump_over_else);
+            self.if_statement();
         } else if self.match_t(TokenKind::While) {
-            self.consume(TokenKind::LeftParen, "Expect '(' after 'while'.");
-            let jump_back_target = self.chunk.code.len();
-            self.expression();
-            self.consume(TokenKind::RightParen, "Expect ')' after condition.");
-
-            let exit_jump = self.emit_jump(Op::JumpIfFalse);
-            self.emit_ins(Op::Pop);
-            self.statement();
-            self.emit_loop(jump_back_target);
-            self.patch_jump(exit_jump);
-            self.emit_ins(Op::Pop);
+            self.while_statement();
         } else if self.match_t(TokenKind::LeftBrace) {
             self.compiler.begin_scope();
             self.block();
@@ -156,7 +127,41 @@ impl<'a> Parser<'a> {
         self.consume(TokenKind::Semicolon, "Expect ';' after value.");
         self.emit_ins(Op::Print);
     }
+    fn if_statement(&mut self) {
+        self.consume(TokenKind::LeftParen, "Expect '(' after 'if'.");
+        self.expression();
+        self.consume(TokenKind::RightParen, "Expect ')' after condition.");
 
+        let jump_over_then = self.emit_jump(Op::JumpIfFalse);
+
+        self.emit_ins(Op::Pop);
+        self.statement();
+
+        let jump_over_else = self.emit_jump(Op::Jump);
+        self.patch_jump(jump_over_then);
+
+        self.emit_ins(Op::Pop);
+
+        if self.match_t(TokenKind::Else) {
+            self.statement();
+        }
+
+        // If there's no else, just jumps over the pop for a falsy condition
+        self.patch_jump(jump_over_else);
+    }
+    fn while_statement(&mut self) {
+        self.consume(TokenKind::LeftParen, "Expect '(' after 'while'.");
+        let jump_back_target = self.chunk.code.len();
+        self.expression();
+        self.consume(TokenKind::RightParen, "Expect ')' after condition.");
+
+        let exit_jump = self.emit_jump(Op::JumpIfFalse);
+        self.emit_ins(Op::Pop);
+        self.statement();
+        self.emit_loop(jump_back_target);
+        self.patch_jump(exit_jump);
+        self.emit_ins(Op::Pop);
+    }
     fn expression_statement(&mut self) {
         self.expression();
         self.consume(TokenKind::Semicolon, "Expect ';' after expression.");
